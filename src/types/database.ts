@@ -44,6 +44,7 @@ export interface Message {
     user_id: string;
     content: string;
     created_at: string;
+    updated_at: string | null;
 }
 
 export interface File {
