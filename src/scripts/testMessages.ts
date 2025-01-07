@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, Message } from '../types/database';
+import { EnrichedMessage, Channel } from '../types/database';
 
 const API_URL = 'http://localhost:5001';
 let authToken: string;
@@ -81,7 +81,7 @@ const testMessageFlow = async () => {
       }
     );
     
-    const newMessage: Message = createMessageResponse.data;
+    const newMessage: EnrichedMessage = createMessageResponse.data;
     console.log('✓ Message created successfully:');
     console.log('  ID:', newMessage.id);
     console.log('  Content:', newMessage.content);
@@ -102,7 +102,7 @@ const testMessageFlow = async () => {
       }
     );
     
-    const updatedMessage: Message = updateMessageResponse.data;
+    const updatedMessage: EnrichedMessage = updateMessageResponse.data;
     console.log('✓ Message updated successfully:');
     console.log('  ID:', updatedMessage.id);
     console.log('  New content:', updatedMessage.content);
@@ -123,7 +123,7 @@ const testMessageFlow = async () => {
       }
     );
     
-    const secondMessage: Message = createSecondMessageResponse.data;
+    const secondMessage: EnrichedMessage = createSecondMessageResponse.data;
     console.log('✓ Second message created successfully:');
     console.log('  ID:', secondMessage.id);
     console.log('  Content:', secondMessage.content);
@@ -140,9 +140,9 @@ const testMessageFlow = async () => {
       }
     );
     
-    const messages: Message[] = messagesResponse.data;
+    const messages: EnrichedMessage[] = messagesResponse.data;
     console.log(`✓ Found ${messages.length} message(s):`);
-    messages.forEach((msg: Message, index: number) => {
+    messages.forEach((msg: EnrichedMessage, index: number) => {
       console.log(`\nMessage ${index + 1}:`);
       console.log('  ID:', msg.id);
       console.log('  From:', msg.name);
@@ -150,6 +150,9 @@ const testMessageFlow = async () => {
       console.log('  Created at:', new Date(msg.created_at).toLocaleString());
       if (msg.updated_at) {
         console.log('  Updated at:', new Date(msg.updated_at).toLocaleString());
+      }
+      if (Object.keys(msg.reactions).length > 0) {
+        console.log('  Reactions:', msg.reactions);
       }
     });
     console.log('-------------------\n');
@@ -180,9 +183,9 @@ const testMessageFlow = async () => {
       }
     );
     
-    const finalMessages: Message[] = finalMessagesResponse.data;
+    const finalMessages: EnrichedMessage[] = finalMessagesResponse.data;
     console.log(`✓ Found ${finalMessages.length} message(s) after deletion:`);
-    finalMessages.forEach((msg: Message, index: number) => {
+    finalMessages.forEach((msg: EnrichedMessage, index: number) => {
       console.log(`\nMessage ${index + 1}:`);
       console.log('  ID:', msg.id);
       console.log('  From:', msg.name);

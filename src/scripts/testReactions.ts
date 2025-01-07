@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, Message, Reaction } from '../types/database';
+import { EnrichedMessage, Channel, Reaction } from '../types/database';
 
 const API_URL = 'http://localhost:5001';
 let authToken: string;
@@ -62,10 +62,14 @@ const testReactionFlow = async () => {
       }
     );
     
-    const testMessage: Message = createMessageResponse.data;
+    const testMessage: EnrichedMessage = createMessageResponse.data;
     console.log('✓ Message created successfully:');
     console.log('  ID:', testMessage.id);
     console.log('  Content:', testMessage.content);
+    console.log('  From:', testMessage.name);
+    if (Object.keys(testMessage.reactions).length > 0) {
+      console.log('  Reactions:', testMessage.reactions);
+    }
     console.log('-------------------\n');
 
     // 4. Add reactions to the message

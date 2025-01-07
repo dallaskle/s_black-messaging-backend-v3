@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, Message } from '../types/database';
+import { EnrichedMessage, Channel } from '../types/database';
 
 const API_URL = 'http://localhost:5001';
 let authToken: string;
@@ -62,7 +62,7 @@ const testThreadedMessageFlow = async () => {
       }
     );
     
-    const parentMessage: Message = createParentResponse.data;
+    const parentMessage: EnrichedMessage = createParentResponse.data;
     console.log('✓ Parent message created successfully:');
     console.log('  ID:', parentMessage.id);
     console.log('  Content:', parentMessage.content);
@@ -86,7 +86,7 @@ const testThreadedMessageFlow = async () => {
       }
     );
     
-    const reply1: Message = createReply1Response.data;
+    const reply1: EnrichedMessage = createReply1Response.data;
     console.log('✓ First reply created successfully:');
     console.log('  Content:', reply1.content);
 
@@ -101,7 +101,7 @@ const testThreadedMessageFlow = async () => {
       }
     );
     
-    const reply2: Message = createReply2Response.data;
+    const reply2: EnrichedMessage = createReply2Response.data;
     console.log('✓ Second reply created successfully:');
     console.log('  Content:', reply2.content);
     console.log('-------------------\n');
@@ -117,15 +117,20 @@ const testThreadedMessageFlow = async () => {
       }
     );
     
-    const threadMessages: Message[] = threadResponse.data;
+    const threadMessages: EnrichedMessage[] = threadResponse.data;
     console.log(`✓ Found ${threadMessages.length} thread message(s):`);
-    threadMessages.forEach((msg: Message, index: number) => {
+    threadMessages.forEach((msg: EnrichedMessage, index: number) => {
       console.log(`\nMessage ${index + 1}:`);
       console.log('  ID:', msg.id);
       console.log('  From:', msg.name);
       console.log('  Content:', msg.content);
-      console.log('  Parent Message ID:', msg.parent_message_id);
       console.log('  Created at:', new Date(msg.created_at).toLocaleString());
+      if (msg.updated_at) {
+        console.log('  Updated at:', new Date(msg.updated_at).toLocaleString());
+      }
+      if (Object.keys(msg.reactions).length > 0) {
+        console.log('  Reactions:', msg.reactions);
+      }
     });
     console.log('-------------------\n');
 
@@ -143,7 +148,7 @@ const testThreadedMessageFlow = async () => {
       }
     );
     
-    const updatedReply: Message = updateResponse.data;
+    const updatedReply: EnrichedMessage = updateResponse.data;
     console.log('✓ Reply updated successfully:');
     console.log('  New content:', updatedReply.content);
     console.log('-------------------\n');
@@ -174,15 +179,18 @@ const testThreadedMessageFlow = async () => {
       }
     );
     
-    const finalThreadMessages: Message[] = finalThreadResponse.data;
+    const finalThreadMessages: EnrichedMessage[] = finalThreadResponse.data;
     console.log(`✓ Found ${finalThreadMessages.length} thread message(s):`);
-    finalThreadMessages.forEach((msg: Message, index: number) => {
+    finalThreadMessages.forEach((msg: EnrichedMessage, index: number) => {
       console.log(`\nMessage ${index + 1}:`);
       console.log('  From:', msg.name);
       console.log('  Content:', msg.content);
       console.log('  Created at:', new Date(msg.created_at).toLocaleString());
       if (msg.updated_at) {
         console.log('  Updated at:', new Date(msg.updated_at).toLocaleString());
+      }
+      if (Object.keys(msg.reactions).length > 0) {
+        console.log('  Reactions:', msg.reactions);
       }
     });
     console.log('-------------------\n');

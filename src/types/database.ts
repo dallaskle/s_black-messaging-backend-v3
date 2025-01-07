@@ -49,7 +49,16 @@ export interface Message {
     parent_message_id: string | null;
     created_at: string;
     updated_at: string | null;
-    name?: string;
+    channels?: {
+        workspace_id: string;
+    };
+    users?: {
+        name: string;
+    };
+    raw_reactions?: Array<{
+        emoji: string;
+        user_id: string;
+    }>;
 }
 
 export interface File {
@@ -99,4 +108,11 @@ export interface Database {
     files: File;
     reactions: Reaction;
     workspace_invitations: WorkspaceInvitation;
+}
+
+// Enriched message type with processed reactions
+export interface EnrichedMessage extends Omit<Message, 'raw_reactions'> {
+    name: string;
+    reactions: { [emoji: string]: number };
+    userReactions: string[];
 } 

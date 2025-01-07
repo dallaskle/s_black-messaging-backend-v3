@@ -1,14 +1,62 @@
 import supabase from '../config/supabaseClient';
-import { Message, WorkspaceMember } from '../types/database';
+import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
 
+interface RawReaction {
+  emoji: string;
+  user_id: string;
+}
+
+const enrichMessageWithDetails = async (
+  message: Message,
+  userId: string
+): Promise<EnrichedMessage> => {
+  // Get workspace member info
+  const { data: workspaceMember } = await supabase
+    .from('workspace_members')
+    .select('display_name')
+    .eq('workspace_id', message.channels?.workspace_id)
+    .eq('user_id', message.user_id)
+    .single();
+
+  // Get user info
+  const { data: user } = await supabase
+    .from('users')
+    .select('name')
+    .eq('id', message.user_id)
+    .single();
+
+  // Get reactions
+  const { data: reactions } = await supabase
+    .from('reactions')
+    .select('emoji, user_id')
+    .eq('message_id', message.id);
+
+  // Process reactions
+  const reactionCounts: { [emoji: string]: number } = {};
+  const userReactions: string[] = [];
+  
+  reactions?.forEach(reaction => {
+    reactionCounts[reaction.emoji] = (reactionCounts[reaction.emoji] || 0) + 1;
+    if (reaction.user_id === userId) {
+      userReactions.push(reaction.emoji);
+    }
+  });
+
+  return {
+    ...message,
+    name: workspaceMember?.display_name || user?.name || 'Unknown',
+    reactions: reactionCounts,
+    userReactions
+  };
+};
 
 export const createMessage = async (
   channelId: string,
   userId: string,
   content: string,
   parentMessageId?: string
-): Promise<Message> => {
+): Promise<EnrichedMessage> => {
   // Check if user is a channel member
   const { data: membership } = await supabase
     .from('channel_members')
@@ -41,30 +89,33 @@ export const createMessage = async (
     if (!workspaceMember) throw new AppError('Access denied', 403);
   }
 
-  const messageData = {
-    channel_id: channelId,
-    user_id: userId,
-    content,
-    parent_message_id: parentMessageId || null
-  };
-
   const { data: message, error } = await supabase
     .from('messages')
-    .insert([messageData])
-    .select()
+    .insert([{
+      channel_id: channelId,
+      user_id: userId,
+      content,
+      parent_message_id: parentMessageId || null
+    }])
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      )
+    `)
     .single();
 
   if (error) throw new AppError(error.message, 400);
   if (!message) throw new AppError('Failed to create message', 500);
 
-  return message;
+  return enrichMessageWithDetails(message, userId);
 };
 
 export const updateMessage = async (
   messageId: string,
   userId: string,
   content: string
-): Promise<Message> => {
+): Promise<EnrichedMessage> => {
   // Check if message exists and belongs to user
   const { data: message } = await supabase
     .from('messages')
@@ -82,13 +133,18 @@ export const updateMessage = async (
       updated_at: new Date().toISOString()
     })
     .eq('id', messageId)
-    .select()
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      )
+    `)
     .single();
 
   if (error) throw new AppError(error.message, 400);
   if (!updatedMessage) throw new AppError('Failed to update message', 500);
 
-  return updatedMessage;
+  return enrichMessageWithDetails(updatedMessage, userId);
 };
 
 export const deleteMessage = async (
@@ -118,7 +174,7 @@ export const getChannelMessages = async (
   userId: string,
   limit: number = 50,
   before?: string
-): Promise<(Message & { name: string })[]> => {
+): Promise<(EnrichedMessage & { name: string })[]> => {
   // Check channel access
   const { data: membership } = await supabase
     .from('channel_members')
@@ -162,7 +218,7 @@ export const getChannelMessages = async (
       users!inner (
         name
       ),
-      reactions!left (
+      raw_reactions:reactions!left (
         emoji,
         user_id
       )
@@ -194,8 +250,8 @@ export const getChannelMessages = async (
       const reactions: { [emoji: string]: number } = {};
       const userReactions: string[] = [];
       
-      if (msg.reactions) {
-        msg.reactions.forEach((reaction: { emoji: string; user_id: string }) => {
+      if (msg.raw_reactions) {
+        msg.raw_reactions.forEach((reaction: RawReaction) => {
           reactions[reaction.emoji] = (reactions[reaction.emoji] || 0) + 1;
           if (reaction.user_id === userId) {
             userReactions.push(reaction.emoji);
@@ -211,11 +267,13 @@ export const getChannelMessages = async (
         parent_message_id: msg.parent_message_id,
         created_at: msg.created_at,
         updated_at: msg.updated_at,
+        channels: msg.channels,
+        users: msg.users,
         name: workspaceMember?.display_name || msg.users.name,
         reactions,
         userReactions
       };
-    });
+    }) as EnrichedMessage[];
 
     return transformedMessages;
   }
@@ -228,7 +286,7 @@ export const getThreadMessages = async (
   userId: string,
   limit: number = 50,
   before?: string
-): Promise<(Message & { name: string })[]> => {
+): Promise<(EnrichedMessage & { name: string })[]> => {
   // First get the parent message to check access
   const { data: parentMessage } = await supabase
     .from('messages')
@@ -312,9 +370,13 @@ export const getThreadMessages = async (
         parent_message_id: msg.parent_message_id,
         created_at: msg.created_at,
         updated_at: msg.updated_at,
-        name: workspaceMember?.display_name || msg.users.name
+        channels: msg.channels,
+        users: msg.users,
+        name: workspaceMember?.display_name || msg.users.name,
+        reactions: {},  // Initialize empty for thread messages
+        userReactions: []  // Initialize empty for thread messages
       };
-    });
+    }) as EnrichedMessage[];
 
     return transformedMessages;
   }
