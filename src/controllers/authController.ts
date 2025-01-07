@@ -55,3 +55,23 @@ export const resendConfirmation = async (req: Request, res: Response): Promise<v
         }
     }
 };
+
+export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            res.status(400).json({ message: 'Refresh token is required' });
+            return;
+        }
+
+        const { user, accessToken } = await authService.refreshToken(token);
+        res.status(200).json({ user, accessToken });
+    } catch (error) {
+        if (error instanceof AppError) {
+            res.status(error.statusCode).json({ message: error.message });
+        } else {
+            res.status(500).json({ message: 'An unknown error occurred' });
+        }
+    }
+};
