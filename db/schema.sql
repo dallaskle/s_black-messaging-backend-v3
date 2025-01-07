@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS users;
 DROP TYPE IF EXISTS member_role;
 DROP TYPE IF EXISTS channel_role;
 DROP TYPE IF EXISTS reactions;
+DROP TYPE IF EXISTS channel_type;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -17,6 +18,9 @@ CREATE TYPE member_role AS ENUM ('admin', 'member');
 
 -- Create enum type for channel roles
 CREATE TYPE channel_role AS ENUM ('admin', 'moderator', 'member');
+
+-- Create enum type for channel types
+CREATE TYPE channel_type AS ENUM ('channel', 'dm');
 
 -- Create workspace invitation table
 CREATE TABLE workspace_invitations (
@@ -73,6 +77,7 @@ CREATE TABLE channels (
     workspace_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     is_private BOOLEAN DEFAULT false,
+    type channel_type NOT NULL DEFAULT 'channel',
     topic TEXT,
     description TEXT,
     created_by UUID NOT NULL,

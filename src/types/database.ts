@@ -1,5 +1,6 @@
 export type MemberRole = 'admin' | 'member';
 export type ChannelRole = 'admin' | 'moderator' | 'member';
+export type ChannelType = 'channel' | 'dm';
 
 export interface Workspace {
     id: string;
@@ -33,6 +34,7 @@ export interface Channel {
     workspace_id: string;
     name: string;
     is_private: boolean;
+    type: ChannelType;
     topic: string | null;
     description: string | null;
     created_by: string;

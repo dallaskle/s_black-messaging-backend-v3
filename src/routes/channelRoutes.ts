@@ -9,6 +9,7 @@ router.use(authenticateToken);
 
 // Channel routes
 router.post('/workspaces/:workspaceId/channels', channelController.createChannel);
+router.post('/workspaces/:workspaceId/dm', channelController.createDMChannel);
 router.get('/workspaces/:workspaceId/channels', channelController.getWorkspaceChannels);
 router.get('/channels/:channelId', channelController.getChannel);
 router.patch('/channels/:channelId', channelController.updateChannel);

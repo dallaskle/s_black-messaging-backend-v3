@@ -114,4 +114,28 @@ export const addChannelMember = async (req: Request, res: Response): Promise<voi
       res.status(500).json({ message: 'An unknown error occurred' });
     }
   }
+};
+
+export const createDMChannel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { workspaceId } = req.params;
+    const { targetUserId } = req.body; // ID of the user to DM with
+    const userId = req.user?.id;
+    
+    if (!userId) throw new AppError('Authentication required', 401);
+    if (!targetUserId) throw new AppError('Target user ID is required', 400);
+
+    const channel = await channelService.createDMChannel(
+      workspaceId,
+      userId,
+      targetUserId
+    );
+    res.status(201).json(channel);
+  } catch (error) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: 'An unknown error occurred' });
+    }
+  }
 }; 
