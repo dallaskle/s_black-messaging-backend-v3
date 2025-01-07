@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS workspaces;
 DROP TABLE IF EXISTS users;
 DROP TYPE IF EXISTS member_role;
 DROP TYPE IF EXISTS channel_role;
+DROP TYPE IF EXISTS reactions;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -101,6 +102,18 @@ CREATE TABLE channel_members (
     UNIQUE(channel_id, user_id)
 );
 
+-- Reactions table
+CREATE TABLE reactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    message_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    emoji VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_message FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(message_id, user_id, emoji)
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_workspace_members_workspace_id ON workspace_members(workspace_id);
 CREATE INDEX idx_workspace_members_user_id ON workspace_members(user_id);
@@ -112,4 +125,8 @@ CREATE INDEX idx_channel_members_channel_id ON channel_members(channel_id);
 CREATE INDEX idx_channel_members_user_id ON channel_members(user_id);
 
 -- Add index for faster thread queries
-CREATE INDEX idx_messages_parent_id ON messages(parent_message_id); 
+CREATE INDEX idx_messages_parent_id ON messages(parent_message_id);
+
+-- Add index for better query performance
+CREATE INDEX idx_reactions_message_id ON reactions(message_id);
+CREATE INDEX idx_reactions_user_id ON reactions(user_id); 

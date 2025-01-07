@@ -65,6 +65,14 @@ export interface ChannelMember {
     joined_at: string;
 }
 
+export interface Reaction {
+    id: string;
+    message_id: string;
+    user_id: string;
+    emoji: string;
+    created_at: string;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
@@ -74,4 +82,5 @@ export interface Database {
     channel_members: ChannelMember;
     messages: Message;
     files: File;
+    reactions: Reaction;
 } 

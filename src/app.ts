@@ -8,8 +8,4 @@ const app = express();
 app.use(express.json()); // For parsing JSON
 app.use(express.urlencoded({ extended: true })); // For parsing form data
 
-// Routes
-app.use('/api/users', userRoutes);
-app.use('/api/workspaces', workspaceRoutes);
-
 export default app;
