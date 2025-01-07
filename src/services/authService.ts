@@ -5,42 +5,61 @@ import AppError from '../types/AppError';
 import { createUser } from './userServices';
 import supabase from '../config/supabaseClient';
 
+//email confirmation link example: url/#access_token=eyJhbGciOiJIUzI1NiIsImtpZCI6IkVZYnZ6cTBXVUpDSmhDWkMiLCJ0eXAiOiJKV1QifQ
 export const registerUser = async (name: string, email: string, password: string): Promise<User> => {
+    console.log('A. Starting validation');
+    
     // Validate input
     if (!validateName(name)) {
-      throw new AppError('Invalid name. Must be between 2 and 50 characters.', 400);
+        console.log('B. Name validation failed');
+        throw new AppError('Invalid name. Must be between 2 and 50 characters.', 400);
     }
     if (!validateEmail(email)) {
-      throw new AppError('Invalid email format.', 400);
+        console.log('C. Email validation failed');
+        throw new AppError('Invalid email format.', 400);
     }
     if (!validatePassword(password)) {
-      throw new AppError(
-        'Password must contain at least 8 characters, 1 uppercase, 1 lowercase, 1 number, and 1 special character.',
-        400
-      );
+        console.log('D. Password validation failed');
+        throw new AppError(
+            'Password must contain at least 8 characters, 1 uppercase, 1 lowercase, 1 number, and 1 special character.',
+            400
+        );
     }
-  
+    
+    console.log('E. Validation passed, proceeding with registration');
     try {
       // Register user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password
       });
+
+      console.log('F. Supabase Auth response:', authData, authError);
   
       if (authError) throw new AppError(authError.message, 400);
       if (!authData.user) throw new AppError('Failed to create user', 500);
   
-      // Create user profile in our users table
-      const userData: Partial<User> = {
-        id: authData.user.id,
-        email,
-        name
+      
+      const userData: User = {
+          id: authData.user.id,
+          email: authData.user.email as string,
+          name: name,
+          created_at: new Date().toISOString(), // Assuming created_at is a string in ISO format
       };
-  
-      const newUser = await createUser(userData);
-      return newUser;
+
+      // Save user data to the users table
+      const { error: userError } = await supabase
+          .from('users')
+          .insert([userData]);
+
+      if (userError) {
+          throw new AppError('Failed to save user data to the database', 500);
+      }
+
+      return userData;
   
     } catch (error) {
+      console.log('G. Error caught in service:', error);
       if (error instanceof AppError) throw error;
       throw new AppError('Error creating user', 500);
     }
@@ -82,6 +101,25 @@ export const registerUser = async (name: string, email: string, password: string
       throw new AppError('Error during login', 500);
     }
   };
+
+  // Resend confirmation email -- Needs to wait 60 seconds before resending
+  export const resendConfirmationEmail = async (email: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email,
+      password: 'fake_password_to_resend',
+    });
+  
+    if (error) {
+      if (error.status === 400 && error.message === 'User already registered') {
+        console.log('Confirmation email resent. Please check your inbox.');
+      } else {
+        console.error('Error resending confirmation email:', error.message);
+      }
+    } else {
+      console.log('Confirmation email resent successfully.');
+    }
+  };
+  
 
 // Helper functions for validation
 const validateName = (name: string): boolean => {
