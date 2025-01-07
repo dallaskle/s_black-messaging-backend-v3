@@ -25,6 +25,7 @@ export interface WorkspaceMember {
     display_name: string | null;
     description: string | null;
     joined_at: string;
+    invitation_code: string | null;
 }
 
 export interface Channel {
@@ -73,6 +74,18 @@ export interface Reaction {
     created_at: string;
 }
 
+export interface WorkspaceInvitation {
+    id: string;
+    workspace_id: string;
+    email: string;
+    token: string;
+    role: MemberRole;
+    expires_at: string | null;
+    single_use: boolean;
+    created_by: string;
+    created_at: string;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
@@ -83,4 +96,5 @@ export interface Database {
     messages: Message;
     files: File;
     reactions: Reaction;
+    workspace_invitations: WorkspaceInvitation;
 } 

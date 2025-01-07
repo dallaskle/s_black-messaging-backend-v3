@@ -18,6 +18,21 @@ CREATE TYPE member_role AS ENUM ('admin', 'member');
 -- Create enum type for channel roles
 CREATE TYPE channel_role AS ENUM ('admin', 'moderator', 'member');
 
+-- Create workspace invitation table
+CREATE TABLE workspace_invitations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    role member_role NOT NULL DEFAULT 'member',
+    expires_at TIMESTAMP WITH TIME ZONE,
+    single_use BOOLEAN DEFAULT false,
+    created_by UUID NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+    CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Users table (extends Supabase auth.users)
 CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
@@ -46,6 +61,7 @@ CREATE TABLE workspace_members (
     display_name VARCHAR(255),
     description TEXT,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    invitation_code VARCHAR(255) REFERENCES workspace_invitations(token),
     CONSTRAINT fk_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(workspace_id, user_id)
@@ -130,3 +146,7 @@ CREATE INDEX idx_messages_parent_id ON messages(parent_message_id);
 -- Add index for better query performance
 CREATE INDEX idx_reactions_message_id ON reactions(message_id);
 CREATE INDEX idx_reactions_user_id ON reactions(user_id); 
+
+-- Add index for faster token lookups
+CREATE INDEX idx_workspace_invitations_token ON workspace_invitations(token);
+CREATE INDEX idx_workspace_invitations_email ON workspace_invitations(email);

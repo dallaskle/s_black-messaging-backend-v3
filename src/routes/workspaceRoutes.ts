@@ -20,4 +20,28 @@ router.post('/:workspaceId/members', isWorkspaceAdmin, workspaceController.addMe
 router.patch('/:workspaceId/members/:userId', isWorkspaceAdmin, workspaceController.updateMember);
 router.delete('/:workspaceId/members/:userId', isWorkspaceAdmin, workspaceController.removeMember);
 
+// Invitation routes
+router.post(
+  '/:workspaceId/invitations',
+  isWorkspaceAdmin,
+  workspaceController.createInvitation
+);
+
+router.get(
+  '/:workspaceId/invitations',
+  isWorkspaceAdmin,
+  workspaceController.getInvitations
+);
+
+router.post(
+  '/:workspaceId/invitations/accept',
+  workspaceController.acceptInvitation
+);
+
+router.delete(
+  '/:workspaceId/invitations/:invitationId',
+  isWorkspaceAdmin,
+  workspaceController.revokeInvitation
+);
+
 export default router; 
