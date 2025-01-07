@@ -19,6 +19,16 @@ export const createWorkspace = async (
     throw new AppError('Workspace URL already taken', 400);
   }
 
+  // Get the owner's name
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('name')
+    .eq('id', ownerId)
+    .single();
+
+  if (userError) throw new AppError(userError.message, 400);
+  if (!user) throw new AppError('User not found', 404);
+
   // Create workspace
   const { data: workspace, error } = await supabase
     .from('workspaces')
@@ -35,12 +45,13 @@ export const createWorkspace = async (
   if (error) throw new AppError(error.message, 400);
   if (!workspace) throw new AppError('Failed to create workspace', 500);
 
-  // Add owner as admin member
+  // Add owner as admin member with their name as display_name
   const { error: memberError } = await supabase.from('workspace_members').insert([
     {
       workspace_id: workspace.id,
       user_id: ownerId,
       role: 'admin',
+      display_name: user.name,
     },
   ]);
 
@@ -192,6 +203,16 @@ export const addWorkspaceMember = async (
     throw new AppError('Access denied', 403);
   }
 
+  // Get the new member's name
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('name')
+    .eq('id', newMemberId)
+    .single();
+
+  if (userError) throw new AppError(userError.message, 400);
+  if (!user) throw new AppError('User not found', 404);
+
   const { data: member, error } = await supabase
     .from('workspace_members')
     .insert([
@@ -199,6 +220,7 @@ export const addWorkspaceMember = async (
         workspace_id: workspaceId,
         user_id: newMemberId,
         role,
+        display_name: user.name,
       },
     ])
     .select()
