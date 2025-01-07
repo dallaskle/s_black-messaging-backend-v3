@@ -6,12 +6,16 @@ DROP TABLE IF EXISTS workspace_members;
 DROP TABLE IF EXISTS workspaces;
 DROP TABLE IF EXISTS users;
 DROP TYPE IF EXISTS member_role;
+DROP TYPE IF EXISTS channel_role;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create enum type for member roles
 CREATE TYPE member_role AS ENUM ('admin', 'member');
+
+-- Create enum type for channel roles
+CREATE TYPE channel_role AS ENUM ('admin', 'moderator', 'member');
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE users (
@@ -82,10 +86,24 @@ CREATE TABLE files (
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Channel Members table
+CREATE TABLE channel_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    role channel_role NOT NULL DEFAULT 'member',
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_channel FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(channel_id, user_id)
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_workspace_members_workspace_id ON workspace_members(workspace_id);
 CREATE INDEX idx_workspace_members_user_id ON workspace_members(user_id);
 CREATE INDEX idx_channels_workspace_id ON channels(workspace_id);
 CREATE INDEX idx_messages_channel_id ON messages(channel_id);
 CREATE INDEX idx_messages_user_id ON messages(user_id);
-CREATE INDEX idx_files_channel_id ON files(channel_id); 
+CREATE INDEX idx_files_channel_id ON files(channel_id);
+CREATE INDEX idx_channel_members_channel_id ON channel_members(channel_id);
+CREATE INDEX idx_channel_members_user_id ON channel_members(user_id); 

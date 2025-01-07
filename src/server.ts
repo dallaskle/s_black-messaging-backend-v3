@@ -2,6 +2,7 @@ import express from 'express';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import workspaceRoutes from './routes/workspaceRoutes';
+import channelRoutes from './routes/channelRoutes';
 
 export function createServer() {
   const app = express();
@@ -13,6 +14,7 @@ export function createServer() {
   app.use('/auth', authRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/workspaces', workspaceRoutes);
+  app.use('/api', channelRoutes);
 
   // Protected route example
   app.get('/api/protected', (req, res) => {

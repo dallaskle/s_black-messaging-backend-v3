@@ -1,4 +1,5 @@
 export type MemberRole = 'admin' | 'member';
+export type ChannelRole = 'admin' | 'moderator' | 'member';
 
 export interface Workspace {
     id: string;
@@ -53,12 +54,21 @@ export interface File {
     uploaded_at: string;
 }
 
+export interface ChannelMember {
+    id: string;
+    channel_id: string;
+    user_id: string;
+    role: ChannelRole;
+    joined_at: string;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
     users: User;
     workspace_members: WorkspaceMember;
     channels: Channel;
+    channel_members: ChannelMember;
     messages: Message;
     files: File;
 } 
