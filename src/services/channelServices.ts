@@ -334,8 +334,8 @@ export const createDMChannel = async (
   const existingDM = existingChannels?.find(channel => {
     const members = channel.channel_members;
     return members.length === 2 &&
-      members.some(m => m.user_id === userId) &&
-      members.some(m => m.user_id === targetUserId);
+      members.some((m: ChannelMember) => m.user_id === userId) &&
+      members.some((m: ChannelMember) => m.user_id === targetUserId);
   });
 
   if (existingDM) {
