@@ -12,5 +12,6 @@ router.post('/channels/:channelId/messages', messageController.createMessage);
 router.patch('/messages/:messageId', messageController.updateMessage);
 router.delete('/messages/:messageId', messageController.deleteMessage);
 router.get('/channels/:channelId/messages', messageController.getChannelMessages);
+router.get('/messages/:messageId/thread', messageController.getThreadMessages);
 
 export default router; 

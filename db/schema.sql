@@ -70,10 +70,12 @@ CREATE TABLE messages (
     channel_id UUID NOT NULL,
     user_id UUID NOT NULL,
     content TEXT NOT NULL,
+    parent_message_id UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT fk_channel FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
-    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_parent_message FOREIGN KEY (parent_message_id) REFERENCES messages(id) ON DELETE CASCADE
 );
 
 -- Files table
@@ -107,4 +109,7 @@ CREATE INDEX idx_messages_channel_id ON messages(channel_id);
 CREATE INDEX idx_messages_user_id ON messages(user_id);
 CREATE INDEX idx_files_channel_id ON files(channel_id);
 CREATE INDEX idx_channel_members_channel_id ON channel_members(channel_id);
-CREATE INDEX idx_channel_members_user_id ON channel_members(user_id); 
+CREATE INDEX idx_channel_members_user_id ON channel_members(user_id);
+
+-- Add index for faster thread queries
+CREATE INDEX idx_messages_parent_id ON messages(parent_message_id); 
