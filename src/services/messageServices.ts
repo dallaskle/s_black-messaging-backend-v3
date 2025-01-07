@@ -151,7 +151,7 @@ export const getChannelMessages = async (
     if (!workspaceMember) throw new AppError('Access denied', 403);
   }
 
-  // Get messages with user information
+  // Update the query to include reactions
   let query = supabase
     .from('messages')
     .select(`
@@ -161,6 +161,10 @@ export const getChannelMessages = async (
       ),
       users!inner (
         name
+      ),
+      reactions!left (
+        emoji,
+        user_id
       )
     `)
     .eq('channel_id', channelId)
@@ -182,10 +186,23 @@ export const getChannelMessages = async (
       .select('user_id, display_name')
       .eq('workspace_id', messages[0].channels.workspace_id);
 
-    // Transform the data to include user name
+    // Transform the data to include user name and process reactions
     const transformedMessages = messages.map(msg => {
       const workspaceMember = workspaceMembers?.find(wm => wm.user_id === msg.user_id);
       
+      // Process reactions into the expected format
+      const reactions: { [emoji: string]: number } = {};
+      const userReactions: string[] = [];
+      
+      if (msg.reactions) {
+        msg.reactions.forEach((reaction: { emoji: string; user_id: string }) => {
+          reactions[reaction.emoji] = (reactions[reaction.emoji] || 0) + 1;
+          if (reaction.user_id === userId) {
+            userReactions.push(reaction.emoji);
+          }
+        });
+      }
+
       return {
         id: msg.id,
         channel_id: msg.channel_id,
@@ -194,7 +211,9 @@ export const getChannelMessages = async (
         parent_message_id: msg.parent_message_id,
         created_at: msg.created_at,
         updated_at: msg.updated_at,
-        name: workspaceMember?.display_name || msg.users.name
+        name: workspaceMember?.display_name || msg.users.name,
+        reactions,
+        userReactions
       };
     });
 
