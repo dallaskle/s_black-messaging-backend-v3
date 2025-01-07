@@ -72,15 +72,28 @@ export const getWorkspaceChannels = async (
     throw new AppError('Access denied', 403);
   }
 
-  // Get all public channels and private channels where user is a member
-  const { data: channels, error } = await supabase
+  // Get all public channels
+  const { data: publicChannels, error: publicError } = await supabase
     .from('channels')
-    .select('*')
+    .select('*, channel_members(*)')
     .eq('workspace_id', workspaceId)
-    .or(`is_private.eq.false,channel_members.user_id.eq.${userId}`);
+    .eq('is_private', false);
 
-  if (error) throw new AppError(error.message, 400);
-  return channels || [];
+  if (publicError) throw new AppError(publicError.message, 400);
+
+  // Get all private channels where user is a member
+  const { data: privateChannels, error: privateError } = await supabase
+    .from('channels')
+    .select('*, channel_members(*)')
+    .eq('workspace_id', workspaceId)
+    .eq('is_private', true)
+    .eq('channel_members.user_id', userId);
+
+  if (privateError) throw new AppError(privateError.message, 400);
+
+  // Combine public and private channels
+  const channels = (publicChannels || []).concat(privateChannels || []);
+  return channels;
 };
 
 export const getChannelById = async (
