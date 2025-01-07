@@ -13,5 +13,6 @@ router.get('/workspaces/:workspaceId/channels', channelController.getWorkspaceCh
 router.get('/channels/:channelId', channelController.getChannel);
 router.patch('/channels/:channelId', channelController.updateChannel);
 router.delete('/channels/:channelId', channelController.deleteChannel);
+router.post('/channels/:channelId/members', channelController.addChannelMember);
 
 export default router; 
