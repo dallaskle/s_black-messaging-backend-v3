@@ -145,6 +145,7 @@ const testMessageFlow = async () => {
     messages.forEach((msg: Message, index: number) => {
       console.log(`\nMessage ${index + 1}:`);
       console.log('  ID:', msg.id);
+      console.log('  From:', msg.name);
       console.log('  Content:', msg.content);
       console.log('  Created at:', new Date(msg.created_at).toLocaleString());
       if (msg.updated_at) {
@@ -184,6 +185,7 @@ const testMessageFlow = async () => {
     finalMessages.forEach((msg: Message, index: number) => {
       console.log(`\nMessage ${index + 1}:`);
       console.log('  ID:', msg.id);
+      console.log('  From:', msg.name);
       console.log('  Content:', msg.content);
     });
     console.log('-------------------\n');

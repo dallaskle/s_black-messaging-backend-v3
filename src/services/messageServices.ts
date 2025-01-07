@@ -1,6 +1,7 @@
 import supabase from '../config/supabaseClient';
-import { Message } from '../types/database';
+import { Message, WorkspaceMember } from '../types/database';
 import AppError from '../types/AppError';
+
 
 export const createMessage = async (
   channelId: string,
@@ -115,7 +116,7 @@ export const getChannelMessages = async (
   userId: string,
   limit: number = 50,
   before?: string
-): Promise<Message[]> => {
+): Promise<(Message & { name: string })[]> => {
   // Check channel access
   const { data: membership } = await supabase
     .from('channel_members')
@@ -148,9 +149,18 @@ export const getChannelMessages = async (
     if (!workspaceMember) throw new AppError('Access denied', 403);
   }
 
+  // Get messages with user information
   let query = supabase
     .from('messages')
-    .select('*')
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      ),
+      users!inner (
+        name
+      )
+    `)
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -162,5 +172,31 @@ export const getChannelMessages = async (
   const { data: messages, error } = await query;
 
   if (error) throw new AppError(error.message, 400);
-  return messages || [];
+
+  // Get workspace members for the channel's workspace
+  if (messages && messages.length > 0) {
+    const { data: workspaceMembers } = await supabase
+      .from('workspace_members')
+      .select('user_id, display_name')
+      .eq('workspace_id', messages[0].channels.workspace_id);
+
+    // Transform the data to include user name
+    const transformedMessages = messages.map(msg => {
+      const workspaceMember = workspaceMembers?.find(wm => wm.user_id === msg.user_id);
+      
+      return {
+        id: msg.id,
+        channel_id: msg.channel_id,
+        user_id: msg.user_id,
+        content: msg.content,
+        created_at: msg.created_at,
+        updated_at: msg.updated_at,
+        name: workspaceMember?.display_name || msg.users.name
+      };
+    });
+
+    return transformedMessages;
+  }
+
+  return [];
 }; 
