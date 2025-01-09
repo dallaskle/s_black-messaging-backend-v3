@@ -1,4 +1,4 @@
-import supabase from '../config/supabaseClient';
+import supabase, { serviceClient } from '../config/supabaseClient';
 import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
 import { fileService } from './fileService';
@@ -7,6 +7,29 @@ interface RawReaction {
   emoji: string;
   user_id: string;
 }
+
+const STORAGE_BUCKET = process.env.SUPABASE_FILE_STORAGE_TABLE || 'files';
+
+// Add helper function to get signed URL
+const getSignedUrl = async (file: any) => {
+  try {
+    const filePath = new URL(file.file_url).pathname.split('/').pop();
+    const { data, error } = await serviceClient
+      .storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(filePath!, 3600);
+
+    if (error || !data?.signedUrl) {
+      console.error('[File URL Signing] Failed:', { fileId: file.id, error });
+      return file.file_url;
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    console.error('[File URL Signing] Error:', { fileId: file.id, error });
+    return file.file_url;
+  }
+};
 
 const enrichMessageWithDetails = async (
   message: Message,
@@ -104,7 +127,7 @@ export const createMessage = async (
         users!inner (
           name
         ),
-        files:message_files!left (
+        files:message_files (
           file:files (
             id,
             file_url,
@@ -276,7 +299,7 @@ export const getChannelMessages = async (
       users!inner (
         name
       ),
-      files:message_files!left (
+      files:message_files (
         file:files (
           id,
           file_url,
@@ -297,52 +320,42 @@ export const getChannelMessages = async (
 
   const { data: messages, error } = await query;
 
+  console.log('Raw messages from DB:', messages);
+
   if (error) throw new AppError(error.message, 400);
 
-  // Get workspace members for the channel's workspace
-  if (messages && messages.length > 0) {
-    const { data: workspaceMembers } = await supabase
-      .from('workspace_members')
-      .select('user_id, display_name')
-      .eq('workspace_id', messages[0].channels.workspace_id);
+  // Transform the data to include user name and process reactions
+  const transformedMessages = await Promise.all(messages.map(async (msg) => {
+    console.log('Processing message files:', msg.files);
+    
+    // Process files and get signed URLs
+    const files = await Promise.all(
+      (msg.files || [])
+        .filter((f: any) => f.file) // Filter out null files
+        .map(async (fileRel: any) => {
+          const file = fileRel.file;
+          console.log('Processing file:', file);
+          const signedUrl = await getSignedUrl(file);
+          console.log('Got signed URL:', signedUrl);
+          return {
+            ...file,
+            file_url: signedUrl
+          };
+        })
+    );
 
-    // Transform the data to include user name and process reactions
-    const transformedMessages = await Promise.all(messages.map(async (msg) => {
-      const workspaceMember = workspaceMembers?.find(wm => wm.user_id === msg.user_id);
-      
-      // Get reactions for this message
-      const { data: reactions } = await supabase
-        .from('reactions')
-        .select('emoji, user_id')
-        .eq('message_id', msg.id);
+    console.log('Processed files:', files);
 
-      // Process reactions
-      const reactionCounts: { [emoji: string]: number } = {};
-      const userReactions: string[] = [];
-      
-      reactions?.forEach(reaction => {
-        reactionCounts[reaction.emoji] = (reactionCounts[reaction.emoji] || 0) + 1;
-        if (reaction.user_id === userId) {
-          userReactions.push(reaction.emoji);
-        }
-      });
+    return {
+      ...msg,
+      name: msg.users.name,
+      reactions: {},
+      userReactions: [],
+      files
+    };
+  }));
 
-      // Transform files array
-      const files = msg.files?.map((fileRelation: any) => fileRelation.file) || [];
-
-      return {
-        ...msg,
-        name: workspaceMember?.display_name || msg.users.name,
-        reactions: reactionCounts,
-        userReactions,
-        files
-      };
-    }));
-
-    return transformedMessages;
-  }
-
-  return [];
+  return transformedMessages;
 };
 
 export const getThreadMessages = async (

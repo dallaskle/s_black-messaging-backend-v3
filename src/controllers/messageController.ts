@@ -90,15 +90,12 @@ export const getChannelMessages = async (req: Request, res: Response): Promise<v
       before as string | undefined
     );
 
-    const transformedMessages = messages.map(message => {
-      const files = message.files?.map((fileRelation: any) => fileRelation.file) || [];
-      return {
-        ...message,
-        files
-      };
-    });
+    console.log('Sending messages to frontend:', messages.map(m => ({
+      id: m.id,
+      filesCount: m.files?.length
+    })));
 
-    res.json(transformedMessages);
+    res.json(messages);
   } catch (error) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ message: error.message });
