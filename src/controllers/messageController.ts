@@ -2,10 +2,21 @@ import { Request, Response } from 'express';
 import * as messageService from '../services/messageServices';
 import AppError from '../types/AppError';
 
+interface CreateMessageBody {
+  content: string;
+  parentMessageId?: string;
+  file?: {
+    url: string;
+    name: string;
+    size: number;
+    type: string;
+  };
+}
+
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { channelId } = req.params;
-    const { content, parentMessageId } = req.body;
+    const { content, parentMessageId, file } = req.body as CreateMessageBody;
     const userId = req.user?.id;
 
     if (!userId) throw new AppError('Authentication required', 401);
@@ -15,7 +26,8 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
       channelId, 
       userId, 
       content,
-      parentMessageId
+      parentMessageId,
+      file
     );
     res.status(201).json(message);
   } catch (error) {

@@ -55,60 +55,28 @@ export const createMessage = async (
   channelId: string,
   userId: string,
   content: string,
-  parentMessageId?: string
-): Promise<EnrichedMessage> => {
-  // Check if user is a channel member
-  const { data: membership } = await supabase
-    .from('channel_members')
-    .select('role')
-    .eq('channel_id', channelId)
-    .eq('user_id', userId)
-    .single();
-
-  if (!membership) {
-    // For public channels, check workspace membership
-    const { data: channel } = await supabase
-      .from('channels')
-      .select('workspace_id, is_private')
-      .eq('id', channelId)
-      .single();
-
-    if (!channel) throw new AppError('Channel not found', 404);
-
-    if (channel.is_private) {
-      throw new AppError('Access denied', 403);
-    }
-
-    const { data: workspaceMember } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', channel.workspace_id)
-      .eq('user_id', userId)
-      .single();
-
-    if (!workspaceMember) throw new AppError('Access denied', 403);
+  parentMessageId?: string,
+  file?: {
+    url: string;
+    name: string;
+    size: number;
+    type: string;
   }
-
-  const { data: message, error } = await supabase
+) => {
+  const { data, error } = await supabase
     .from('messages')
-    .insert([{
+    .insert({
       channel_id: channelId,
       user_id: userId,
       content,
-      parent_message_id: parentMessageId || null
-    }])
-    .select(`
-      *,
-      channels!inner (
-        workspace_id
-      )
-    `)
+      parent_message_id: parentMessageId,
+      file_data: file  // Add this to your messages table if not already present
+    })
+    .select()
     .single();
 
-  if (error) throw new AppError(error.message, 400);
-  if (!message) throw new AppError('Failed to create message', 500);
-
-  return enrichMessageWithDetails(message, userId);
+  if (error) throw new AppError(error.message, 500);
+  return data;
 };
 
 export const updateMessage = async (
