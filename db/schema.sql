@@ -155,3 +155,9 @@ CREATE INDEX idx_reactions_user_id ON reactions(user_id);
 -- Add index for faster token lookups
 CREATE INDEX idx_workspace_invitations_token ON workspace_invitations(token);
 CREATE INDEX idx_workspace_invitations_email ON workspace_invitations(email);
+
+-- Files table looks good, but let's add some columns
+ALTER TABLE files ADD COLUMN IF NOT EXISTS file_name TEXT NOT NULL;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS file_type TEXT NOT NULL;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS file_size BIGINT NOT NULL;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES messages(id) ON DELETE CASCADE;
