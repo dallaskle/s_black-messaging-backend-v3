@@ -5,29 +5,26 @@ import AppError from '../types/AppError';
 interface CreateMessageBody {
   content: string;
   parentMessageId?: string;
-  file?: {
-    url: string;
-    name: string;
-    size: number;
-    type: string;
-  };
+  fileIds?: string[];
 }
 
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { channelId } = req.params;
-    const { content, parentMessageId, file } = req.body as CreateMessageBody;
+    const { content, parentMessageId, fileIds } = req.body as CreateMessageBody;
     const userId = req.user?.id;
 
     if (!userId) throw new AppError('Authentication required', 401);
-    if (!content) throw new AppError('Message content is required', 400);
+    if (!content && (!fileIds || fileIds.length === 0)) {
+      throw new AppError('Message must contain content or files', 400);
+    }
 
     const message = await messageService.createMessage(
       channelId, 
       userId, 
-      content,
+      content || '',
       parentMessageId,
-      file
+      fileIds
     );
     res.status(201).json(message);
   } catch (error) {
@@ -91,7 +88,16 @@ export const getChannelMessages = async (req: Request, res: Response): Promise<v
       limit ? parseInt(limit as string) : undefined,
       before as string | undefined
     );
-    res.json(messages);
+
+    const transformedMessages = messages.map(message => {
+      const files = message.files?.map((fileRelation: any) => fileRelation.file) || [];
+      return {
+        ...message,
+        files
+      };
+    });
+
+    res.json(transformedMessages);
   } catch (error) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ message: error.message });
@@ -115,7 +121,16 @@ export const getThreadMessages = async (req: Request, res: Response): Promise<vo
       limit ? parseInt(limit as string) : undefined,
       before as string | undefined
     );
-    res.json(messages);
+
+    const transformedMessages = messages.map(message => {
+      const files = message.files?.map((fileRelation: any) => fileRelation.file) || [];
+      return {
+        ...message,
+        files
+      };
+    });
+
+    res.json(transformedMessages);
   } catch (error) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ message: error.message });

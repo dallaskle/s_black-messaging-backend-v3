@@ -55,11 +55,19 @@ export const fileController = {
   async deleteFile(req: FileUploadRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { fileId } = req.params;
+      const userId = req.user?.id;
+
       if (!fileId) {
         res.status(400).json({ error: 'File ID is required' });
         return;
       }
-      await fileService.deleteFile(fileId);
+
+      if (!userId) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      await fileService.deleteFile(fileId, userId);
       res.status(204).send();
     } catch (error) {
       next(error);

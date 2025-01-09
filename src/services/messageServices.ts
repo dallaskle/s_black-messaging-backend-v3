@@ -1,6 +1,7 @@
 import supabase from '../config/supabaseClient';
 import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
+import { fileService } from './fileService';
 
 interface RawReaction {
   emoji: string;
@@ -56,27 +57,29 @@ export const createMessage = async (
   userId: string,
   content: string,
   parentMessageId?: string,
-  file?: {
-    url: string;
-    name: string;
-    size: number;
-    type: string;
-  }
+  fileIds?: string[]
 ) => {
-  const { data, error } = await supabase
+  const { data: message, error } = await supabase
     .from('messages')
     .insert({
       channel_id: channelId,
       user_id: userId,
       content,
       parent_message_id: parentMessageId,
-      file_data: file  // Add this to your messages table if not already present
     })
     .select()
     .single();
 
   if (error) throw new AppError(error.message, 500);
-  return data;
+
+  console.log('message', message);
+
+  // Link files if provided
+  if (fileIds && fileIds.length > 0) {
+    await fileService.linkFilesToMessage(message.id, fileIds);
+  }
+
+  return message;
 };
 
 export const updateMessage = async (
@@ -122,13 +125,28 @@ export const deleteMessage = async (
   // Check if message exists and belongs to user
   const { data: message } = await supabase
     .from('messages')
-    .select('*')
+    .select(`
+      *,
+      files:message_files!left (
+        file:files (
+          id
+        )
+      )
+    `)
     .eq('id', messageId)
     .single();
 
   if (!message) throw new AppError('Message not found', 404);
   if (message.user_id !== userId) throw new AppError('Access denied', 403);
 
+  // Delete associated files
+  if (message.files) {
+    for (const fileRelation of message.files) {
+      await fileService.deleteFile(fileRelation.file.id);
+    }
+  }
+
+  // The message_files records will be automatically deleted due to CASCADE
   const { error } = await supabase
     .from('messages')
     .delete()
@@ -142,7 +160,7 @@ export const getChannelMessages = async (
   userId: string,
   limit: number = 50,
   before?: string
-): Promise<(EnrichedMessage & { name: string })[]> => {
+): Promise<EnrichedMessage[]> => {
   // Check channel access
   const { data: membership } = await supabase
     .from('channel_members')
@@ -175,7 +193,6 @@ export const getChannelMessages = async (
     if (!workspaceMember) throw new AppError('Access denied', 403);
   }
 
-  // Update the query to include reactions
   let query = supabase
     .from('messages')
     .select(`
@@ -186,9 +203,15 @@ export const getChannelMessages = async (
       users!inner (
         name
       ),
-      raw_reactions:reactions!left (
-        emoji,
-        user_id
+      files:message_files!left (
+        file:files (
+          id,
+          file_url,
+          file_name,
+          file_size,
+          mime_type,
+          thumbnail_url
+        )
       )
     `)
     .eq('channel_id', channelId)
@@ -211,37 +234,37 @@ export const getChannelMessages = async (
       .eq('workspace_id', messages[0].channels.workspace_id);
 
     // Transform the data to include user name and process reactions
-    const transformedMessages = messages.map(msg => {
+    const transformedMessages = await Promise.all(messages.map(async (msg) => {
       const workspaceMember = workspaceMembers?.find(wm => wm.user_id === msg.user_id);
       
-      // Process reactions into the expected format
-      const reactions: { [emoji: string]: number } = {};
+      // Get reactions for this message
+      const { data: reactions } = await supabase
+        .from('reactions')
+        .select('emoji, user_id')
+        .eq('message_id', msg.id);
+
+      // Process reactions
+      const reactionCounts: { [emoji: string]: number } = {};
       const userReactions: string[] = [];
       
-      if (msg.raw_reactions) {
-        msg.raw_reactions.forEach((reaction: RawReaction) => {
-          reactions[reaction.emoji] = (reactions[reaction.emoji] || 0) + 1;
-          if (reaction.user_id === userId) {
-            userReactions.push(reaction.emoji);
-          }
-        });
-      }
+      reactions?.forEach(reaction => {
+        reactionCounts[reaction.emoji] = (reactionCounts[reaction.emoji] || 0) + 1;
+        if (reaction.user_id === userId) {
+          userReactions.push(reaction.emoji);
+        }
+      });
+
+      // Transform files array
+      const files = msg.files?.map((fileRelation: any) => fileRelation.file) || [];
 
       return {
-        id: msg.id,
-        channel_id: msg.channel_id,
-        user_id: msg.user_id,
-        content: msg.content,
-        parent_message_id: msg.parent_message_id,
-        created_at: msg.created_at,
-        updated_at: msg.updated_at,
-        channels: msg.channels,
-        users: msg.users,
+        ...msg,
         name: workspaceMember?.display_name || msg.users.name,
-        reactions,
-        userReactions
+        reactions: reactionCounts,
+        userReactions,
+        files
       };
-    }) as EnrichedMessage[];
+    }));
 
     return transformedMessages;
   }

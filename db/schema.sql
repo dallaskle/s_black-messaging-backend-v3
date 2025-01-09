@@ -106,9 +106,24 @@ CREATE TABLE files (
     channel_id UUID NOT NULL,
     user_id UUID NOT NULL,
     file_url TEXT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type VARCHAR(255) NOT NULL,
+    thumbnail_url TEXT,
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_channel FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Message Files join table
+CREATE TABLE message_files (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    message_id UUID NOT NULL,
+    file_id UUID NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_message FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    CONSTRAINT fk_file FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,
+    UNIQUE(message_id, file_id)
 );
 
 -- Channel Members table
@@ -155,3 +170,7 @@ CREATE INDEX idx_reactions_user_id ON reactions(user_id);
 -- Add index for faster token lookups
 CREATE INDEX idx_workspace_invitations_token ON workspace_invitations(token);
 CREATE INDEX idx_workspace_invitations_email ON workspace_invitations(email);
+
+-- Add index for better query performance
+CREATE INDEX idx_message_files_message_id ON message_files(message_id);
+CREATE INDEX idx_message_files_file_id ON message_files(file_id);

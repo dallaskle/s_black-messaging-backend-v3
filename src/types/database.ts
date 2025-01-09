@@ -59,6 +59,7 @@ export interface Message {
         emoji: string;
         user_id: string;
     }>;
+    files?: File[];
 }
 
 export interface File {
@@ -66,6 +67,10 @@ export interface File {
     channel_id: string;
     user_id: string;
     file_url: string;
+    file_name: string;
+    file_size: number;
+    mime_type: string;
+    thumbnail_url?: string;
     uploaded_at: string;
 }
 
@@ -97,6 +102,13 @@ export interface WorkspaceInvitation {
     created_at: string;
 }
 
+export interface MessageFile {
+    id: string;
+    message_id: string;
+    file_id: string;
+    created_at: string;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
@@ -108,6 +120,7 @@ export interface Database {
     files: File;
     reactions: Reaction;
     workspace_invitations: WorkspaceInvitation;
+    message_files: MessageFile;
 }
 
 // Enriched message type with processed reactions
