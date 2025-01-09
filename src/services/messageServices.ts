@@ -59,27 +59,100 @@ export const createMessage = async (
   parentMessageId?: string,
   fileIds?: string[]
 ) => {
-  const { data: message, error } = await supabase
-    .from('messages')
-    .insert({
-      channel_id: channelId,
-      user_id: userId,
-      content,
-      parent_message_id: parentMessageId,
-    })
-    .select()
-    .single();
+  const logContext = {
+    channelId,
+    userId,
+    parentMessageId,
+    fileIds,
+    messageLength: content.length
+  };
 
-  if (error) throw new AppError(error.message, 500);
+  console.log('[Message Creation] Starting process:', logContext);
 
-  console.log('message', message);
+  try {
+    const { data: insertedMessage, error: insertError } = await supabase
+      .from('messages')
+      .insert({
+        channel_id: channelId,
+        user_id: userId,
+        content,
+        parent_message_id: parentMessageId,
+      })
+      .select()
+      .single();
 
-  // Link files if provided
-  if (fileIds && fileIds.length > 0) {
-    await fileService.linkFilesToMessage(message.id, fileIds);
+    if (insertError) {
+      console.error('[Message Creation] Failed to insert:', { ...logContext, error: insertError });
+      throw new AppError(insertError.message, 500);
+    }
+
+    console.log('[Message Creation] Base message inserted:', { messageId: insertedMessage.id });
+
+    if (fileIds && fileIds.length > 0) {
+      console.log('[Message Creation] Linking files:', { messageId: insertedMessage.id, fileIds });
+      await fileService.linkFilesToMessage(insertedMessage.id, fileIds);
+    }
+
+    // 3. Fetch the newly created message with related data
+    const { data: fullMessage, error: fetchError } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        channels!inner (
+          workspace_id
+        ),
+        users!inner (
+          name
+        ),
+        files:message_files!left (
+          file:files (
+            id,
+            file_url,
+            file_name,
+            file_size,
+            mime_type,
+            thumbnail_url
+          )
+        )
+      `)
+      .eq('id', insertedMessage.id)
+      .single();
+
+    if (fetchError) {
+      console.error('[Message Creation] Failed to fetch full message details', { 
+        ...logContext, 
+        messageId: insertedMessage.id, 
+        error: fetchError 
+      });
+      throw new AppError(fetchError.message, 500);
+    }
+
+    // 4. Process files array
+    const newFiles = fullMessage.files?.map((rel: any) => rel.file) || [];
+    
+    // 5. Enrich with additional data
+    const enriched = await enrichMessageWithDetails(fullMessage, userId);
+    
+    const finalMessage = {
+      ...enriched,
+      files: newFiles
+    };
+
+    console.log('[Message Creation] Completed successfully:', {
+      messageId: insertedMessage.id,
+      hasFiles: newFiles.length > 0,
+      fileCount: newFiles.length
+    });
+
+    return finalMessage;
+
+  } catch (error) {
+    console.error('[Message Creation] Unexpected error:', {
+      ...logContext,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
   }
-
-  return message;
 };
 
 export const updateMessage = async (
@@ -373,4 +446,96 @@ export const getThreadMessages = async (
   }
 
   return [];
+};
+
+export const createMessageWithFile = async (
+  channelId: string,
+  userId: string,
+  content: string,
+  file?: Express.Multer.File,
+  parentMessageId?: string
+): Promise<EnrichedMessage> => {
+  const logContext = {
+    channelId,
+    userId,
+    parentMessageId,
+    hasFile: !!file
+  };
+
+  console.log('[Message Creation] Starting process:', logContext);
+
+  try {
+    // If there's a file, upload it first
+    let uploadedFile;
+    if (file) {
+      uploadedFile = await fileService.uploadFile(channelId, userId, file);
+    }
+
+    // Create the message
+    const { data: insertedMessage, error: insertError } = await supabase
+      .from('messages')
+      .insert({
+        channel_id: channelId,
+        user_id: userId,
+        content,
+        parent_message_id: parentMessageId,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[Message Creation] Failed to insert:', { ...logContext, error: insertError });
+      throw new AppError(insertError.message, 500);
+    }
+
+    // If we have an uploaded file, link it to the message
+    if (uploadedFile) {
+      await fileService.linkFilesToMessage(insertedMessage.id, [uploadedFile.id]);
+    }
+
+    // Fetch the complete message with all related data
+    const { data: fullMessage, error: fetchError } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        channels!inner (
+          workspace_id
+        ),
+        users!inner (
+          name
+        ),
+        files:message_files!left (
+          file:files (
+            id,
+            file_url,
+            file_name,
+            file_size,
+            mime_type,
+            thumbnail_url
+          )
+        )
+      `)
+      .eq('id', insertedMessage.id)
+      .single();
+
+    if (fetchError) throw new AppError(fetchError.message, 500);
+
+    // Process files array
+    const files = fullMessage.files?.map((rel: any) => rel.file) || [];
+    
+    // Enrich with additional data
+    const enriched = await enrichMessageWithDetails(fullMessage, userId);
+    
+    return {
+      ...enriched,
+      files
+    };
+
+  } catch (error) {
+    console.error('[Message Creation] Unexpected error:', {
+      ...logContext,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
 }; 

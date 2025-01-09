@@ -5,27 +5,28 @@ import AppError from '../types/AppError';
 interface CreateMessageBody {
   content: string;
   parentMessageId?: string;
-  fileIds?: string[];
 }
 
 export const createMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { channelId } = req.params;
-    const { content, parentMessageId, fileIds } = req.body as CreateMessageBody;
+    const { content, parentMessageId } = req.body as CreateMessageBody;
     const userId = req.user?.id;
+    const file = req.file;
 
     if (!userId) throw new AppError('Authentication required', 401);
-    if (!content && (!fileIds || fileIds.length === 0)) {
-      throw new AppError('Message must contain content or files', 400);
+    if (!content && !file) {
+      throw new AppError('Message must contain content or file', 400);
     }
 
-    const message = await messageService.createMessage(
-      channelId, 
-      userId, 
+    const message = await messageService.createMessageWithFile(
+      channelId,
+      userId,
       content || '',
-      parentMessageId,
-      fileIds
+      file,
+      parentMessageId
     );
+
     res.status(201).json(message);
   } catch (error) {
     if (error instanceof AppError) {

@@ -1,6 +1,7 @@
 import express from 'express';
 import * as messageController from '../controllers/messageController';
 import { authenticateToken } from '../middleware/auth';
+import { upload } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -8,7 +9,11 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Message routes
-router.post('/channels/:channelId/messages', messageController.createMessage);
+router.post(
+  '/channels/:channelId/messages',
+  upload.single('file'),
+  messageController.createMessage
+);
 router.patch('/messages/:messageId', messageController.updateMessage);
 router.delete('/messages/:messageId', messageController.deleteMessage);
 router.get('/channels/:channelId/messages', messageController.getChannelMessages);

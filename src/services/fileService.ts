@@ -30,71 +30,124 @@ export const fileService = {
     userId: string,
     file: MulterFile
   ): Promise<File> {
+    const logContext = {
+      channelId,
+      userId,
+      fileName: file.originalname,
+      fileSize: file.size,
+      mimeType: file.mimetype
+    };
+
+    console.log('[File Upload] Starting process:', logContext);
+
     const fileId = uuidv4();
     const fileExt = file.originalname.split('.').pop();
     const filePath = `${channelId}/${fileId}.${fileExt}`;
 
-    // Upload to Supabase Storage
-    const { data: storageData, error: storageError } = await serviceClient
-      .storage
-      .from(STORAGE_BUCKET)
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false
+    try {
+      console.log('[File Upload] Uploading to storage:', { ...logContext, filePath });
+
+      const { data: storageData, error: storageError } = await serviceClient
+        .storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        });
+
+      if (storageError) {
+        console.error('[File Upload] Storage upload failed:', { 
+          ...logContext, 
+          error: storageError 
+        });
+        throw new Error(`Storage error: ${storageError.message}`);
+      }
+
+      console.log('[File Upload] Storage upload successful:', { fileId });
+
+      // Get public URL
+      const { data: { publicUrl } } = serviceClient
+        .storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+
+      // Create database record
+      console.log('[File Upload] Creating database record for file:', { 
+        ...logContext, 
+        fileId 
       });
 
-    if (storageError) {
-      throw new Error(`Storage error: ${storageError.message}`);
+      const { data, error } = await supabase
+        .from('files')
+        .insert({
+          id: fileId,
+          channel_id: channelId,
+          user_id: userId,
+          file_url: publicUrl,
+          file_name: file.originalname,
+          file_size: file.size,
+          mime_type: file.mimetype,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[File Upload] Database record creation failed:', { 
+          ...logContext, 
+          error 
+        });
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      console.log('[File Upload] Successfully created file record:', { 
+        ...logContext, 
+        fileId: data.id 
+      });
+
+      return {
+        ...data,
+        file_id: data.id
+      };
+
+    } catch (error) {
+      console.error('[File Upload] Unexpected error:', {
+        ...logContext,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
     }
-
-    // Get public URL
-    const { data: { publicUrl } } = serviceClient
-      .storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(filePath);
-
-    // Create database record
-    const { data, error } = await supabase
-      .from('files')
-      .insert({
-        id: fileId,
-        channel_id: channelId,
-        user_id: userId,
-        file_url: publicUrl,
-        file_name: file.originalname,
-        file_size: file.size,
-        mime_type: file.mimetype,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    return {
-      ...data,
-      file_id: data.id
-    };
   },
 
   async linkFilesToMessage(
     messageId: string,
     fileIds: string[]
   ): Promise<void> {
-    console.log('linking files to message');
-    console.log('fileIds', fileIds);
-    const { error } = await supabase
-      .from('message_files')
-      .insert(
-        fileIds.map(fileId => ({
-          message_id: messageId,
-          file_id: fileId
-        }))
-      );
+    console.log('[File Linking] Starting process:', { messageId, fileIds });
 
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
+    try {
+      const { error } = await supabase
+        .from('message_files')
+        .insert(
+          fileIds.map(fileId => ({
+            message_id: messageId,
+            file_id: fileId
+          }))
+        );
+
+      if (error) {
+        console.error('[File Linking] Failed:', { messageId, fileIds, error });
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      console.log('[File Linking] Completed successfully:', { messageId, fileIds });
+
+    } catch (error) {
+      console.error('[File Linking] Unexpected error:', {
+        messageId,
+        fileIds,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
     }
   },
 
