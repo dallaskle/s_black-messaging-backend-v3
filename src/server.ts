@@ -5,6 +5,7 @@ import authRoutes from './auth/authRoutes';
 import workspaceRoutes from './workspace/workspaceRoutes';
 import channelRoutes from './channel/index';
 import messageRoutes from './routes/messageRoutes';
+import messageV2Routes from './messages_v2/messageRoutes';
 import reactionRoutes from './routes/reactionRoutes';
 import fileRoutes from './routes/fileRoutes';
 
@@ -27,9 +28,9 @@ export function createServer() {
   app.use('/api/workspaces', workspaceRoutes);
   app.use('/api', channelRoutes);
   app.use('/api', messageRoutes);
+  app.use('/api/v2', messageV2Routes); //SEE: V2
   app.use('/api', reactionRoutes);
   app.use('/api', fileRoutes);
-
   // Protected route example
   app.get('/api/protected', (req, res) => {
     res.json({ message: 'Protected data' });
