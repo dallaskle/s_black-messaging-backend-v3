@@ -3,6 +3,10 @@ import supabase from '../../../config/supabaseClient';
 
 jest.mock('../../../config/supabaseClient');
 
+// Tests the confirmation service's:
+// 1. Handling of already registered users
+// 2. Successful email resend operation
+// 3. Error handling for various Supabase response scenarios
 describe('confirmationService', () => {
     const testEmail = 'test@example.com';
 

@@ -1,10 +1,14 @@
 import { resendConfirmation } from '../../../auth/controllers/resendConfirmationController';
 import * as authService from '../../../auth/services/confirmationService';
-import { createMockRequest, createMockResponse } from '../testUtils';
+import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
 
 jest.mock('../../../auth/services/confirmationService');
 
+// Tests the resend confirmation controller's:
+// 1. Successful resending of confirmation email
+// 2. Handling of missing email in request
+// 3. Error handling for email service failures
 describe('resendConfirmationController', () => {
     const validEmail = 'test@example.com';
 

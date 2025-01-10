@@ -4,6 +4,11 @@ import AppError from '../../../types/AppError';
 
 jest.mock('../../../config/supabaseClient');
 
+// Tests the login service's:
+// 1. Successful authentication with valid credentials
+// 2. Invalid credentials error handling
+// 3. Missing user profile error handling
+// 4. Supabase authentication integration
 describe('loginService', () => {
     const validCredentials = {
         email: 'test@example.com',

@@ -1,6 +1,9 @@
 import { logout } from '../../../auth/controllers/logoutController';
-import { createMockRequest, createMockResponse } from '../testUtils';
+import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 
+// Tests the logout controller's:
+// 1. Successful logout - verifies refresh token cookie clearing
+// 2. Error handling during cookie clearing operations
 describe('logoutController', () => {
     beforeEach(() => {
         jest.clearAllMocks();

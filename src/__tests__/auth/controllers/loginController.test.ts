@@ -1,10 +1,14 @@
 import { login } from '../../../auth/controllers/loginController';
 import * as authService from '../../../auth/services/loginService';
-import { createMockRequest, createMockResponse } from '../testUtils';
+import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
 
 jest.mock('../../../auth/services/loginService');
 
+// Tests the login controller's:
+// 1. Successful login with valid credentials - verifies cookie setting and response format
+// 2. Handling of authentication errors (401)
+// 3. Handling of unknown server errors (500)
 describe('loginController', () => {
     const validCredentials = {
         email: 'test@example.com',

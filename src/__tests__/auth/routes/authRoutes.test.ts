@@ -6,6 +6,12 @@ import * as controllers from '../../../auth/controllers';
 
 jest.mock('../../../auth/controllers');
 
+// Tests the auth routes configuration:
+// 1. POST /register - user registration endpoint
+// 2. POST /login - user login endpoint
+// 3. POST /resend-confirmation - email confirmation resend
+// 4. POST /refresh-token - token refresh endpoint
+// 5. POST /logout - user logout endpoint
 describe('Auth Routes', () => {
     let app: express.Application;
 

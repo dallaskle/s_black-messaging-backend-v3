@@ -1,10 +1,14 @@
 import { register } from '../../../auth/controllers/registerController';
 import * as authService from '../../../auth/services/registerService';
-import { createMockRequest, createMockResponse } from '../testUtils';
+import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
 
 jest.mock('../../../auth/services/registerService');
 
+// Tests the register controller's:
+// 1. Successful user registration with valid data
+// 2. Validation error handling (400) for invalid input
+// 3. Unknown error handling (500) during registration process
 describe('registerController', () => {
     const validUserData = {
         name: 'Test User',

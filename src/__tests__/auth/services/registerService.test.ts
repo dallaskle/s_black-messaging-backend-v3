@@ -4,6 +4,11 @@ import AppError from '../../../types/AppError';
 
 jest.mock('../../../config/supabaseClient');
 
+// Tests the register service's:
+// 1. Input validation (name, email, password requirements)
+// 2. Successful user creation in Supabase
+// 3. Error handling for auth failures
+// 4. Error handling for database operations
 describe('registerService', () => {
     const validUserData = {
         name: 'Test User',

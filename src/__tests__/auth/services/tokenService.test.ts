@@ -6,6 +6,11 @@ import AppError from '../../../types/AppError';
 jest.mock('../../../config/supabaseClient');
 jest.mock('jsonwebtoken');
 
+// Tests the token service's:
+// 1. JWT token creation with correct payload
+// 2. Token refresh operations with Supabase
+// 3. Invalid/expired token handling
+// 4. Missing session and user profile scenarios
 describe('tokenService', () => {
     beforeEach(() => {
         jest.clearAllMocks();

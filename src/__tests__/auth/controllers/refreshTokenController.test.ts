@@ -1,9 +1,15 @@
 import { refreshToken } from '../../../auth/controllers/refreshTokenController';
 import * as authService from '../../../auth/services/tokenService';
-import { createMockRequest, createMockResponse } from '../testUtils';
+import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
 
 jest.mock('../../../auth/services/tokenService');
+
+// Tests the refresh token controller's:
+// 1. Successful token refresh - verifies new token generation and cookie updates
+// 2. Handling of missing refresh token in request
+// 3. Handling of invalid refresh tokens
+// 4. Handling of unknown errors during refresh
 
 describe('refreshTokenController', () => {
     const validRefreshToken = 'valid-refresh-token';
