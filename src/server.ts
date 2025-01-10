@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './auth/authRoutes';
-import workspaceRoutes from './routes/workspaceRoutes';
+import workspaceRoutes from './workspace/workspaceRoutes';
 import channelRoutes from './routes/channelRoutes';
 import messageRoutes from './routes/messageRoutes';
 import reactionRoutes from './routes/reactionRoutes';
