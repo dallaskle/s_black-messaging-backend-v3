@@ -1,7 +1,7 @@
 import express from 'express';
 import * as workspaceController from '../controllers/workspaceController';
-import { authenticateToken, isWorkspaceAdmin } from '../middleware/auth';
-
+import { authenticateToken } from '../middleware/authMiddleWare/authenticateToken';
+import { isWorkspaceAdmin } from '../middleware/authMiddleWare/isWorkspaceAdmin';
 const router = express.Router();
 
 // Apply authentication middleware to all workspace routes

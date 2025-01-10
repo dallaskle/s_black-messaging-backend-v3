@@ -1,6 +1,6 @@
 import express from 'express';
 import * as channelController from '../controllers/channelController';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken } from '../middleware/authMiddleWare/authenticateToken';
 
 const router = express.Router();
 

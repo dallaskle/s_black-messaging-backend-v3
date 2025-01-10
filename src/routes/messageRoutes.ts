@@ -1,6 +1,6 @@
 import express from 'express';
 import * as messageController from '../controllers/messageController';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken } from '../middleware/authMiddleWare/authenticateToken';
 import { upload } from '../middleware/upload';
 
 const router = express.Router();

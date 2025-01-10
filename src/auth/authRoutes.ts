@@ -1,5 +1,11 @@
 import express from 'express';
-import { register, login, resendConfirmation, refreshToken, logout } from '../controllers/authController';
+import {
+    register,
+    login,
+    resendConfirmation,
+    refreshToken,
+    logout
+} from './controllers';
 
 const router = express.Router();
 

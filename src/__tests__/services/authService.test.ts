@@ -1,4 +1,4 @@
-import { registerUser } from '../../services/authService';
+import { registerUser } from '../../auth/authService';
 import { createUser } from '../../services/userServices';
 import supabase from '../../config/supabaseClient';
 import AppError from '../../types/AppError';

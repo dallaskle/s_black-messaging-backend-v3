@@ -1,7 +1,7 @@
 import request from 'supertest';
 import express from 'express';
-import authRoutes from '../../routes/authRoutes';
-import * as authController from '../../controllers/authController';
+import authRoutes from '../../auth/authRoutes';
+import * as authController from '../../auth/authController';
 
 jest.mock('../../controllers/authController');
 
