@@ -3,10 +3,11 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './auth/authRoutes';
 import workspaceRoutes from './workspace/workspaceRoutes';
-import channelRoutes from './routes/channelRoutes';
+import channelRoutes from './channel/index';
 import messageRoutes from './routes/messageRoutes';
 import reactionRoutes from './routes/reactionRoutes';
 import fileRoutes from './routes/fileRoutes';
+
 export function createServer() {
   const app = express();
   
