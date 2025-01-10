@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './auth/authRoutes';
-import userRoutes from './routes/userRoutes';
 import workspaceRoutes from './routes/workspaceRoutes';
 import channelRoutes from './routes/channelRoutes';
 import messageRoutes from './routes/messageRoutes';
@@ -24,7 +23,6 @@ export function createServer() {
   
   // Routes
   app.use('/auth', authRoutes);
-  app.use('/api/users', userRoutes);
   app.use('/api/workspaces', workspaceRoutes);
   app.use('/api', channelRoutes);
   app.use('/api', messageRoutes);
