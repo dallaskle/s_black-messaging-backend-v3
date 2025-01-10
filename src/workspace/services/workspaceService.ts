@@ -80,7 +80,7 @@ export const getUserWorkspaces = async (userId: string): Promise<Workspace[]> =>
   return workspaces || [];
 };
 
-export const getWorkspaceWithChannels = async (userId: string): Promise<WorkspaceWithChannels | null> => {
+export const getWorkspaceWithChannels = async (userId: string): Promise<WorkspaceWithChannels[] | null> => {
   console.log('1. Service: Starting getWorkspaceWithChannels');
   console.log('2. Service: User ID:', userId);
 
@@ -94,22 +94,23 @@ const workspaces = await getUserWorkspaces(userId);
     return null;
   }
 
-  // Get the first workspace
-  const workspace = workspaces[0];
-  console.log('6. Service: Selected workspace:', workspace);
+  // Get all workspaces and their channels
+  const workspacesWithChannels = await Promise.all(workspaces.map(async (workspace) => {
+    console.log('6. Service: Selected workspace:', workspace);
 
-  // Get channels for the workspace
-  console.log('7. Service: Fetching channels for workspace:', workspace.id);
-  const channels = await getWorkspaceChannels(workspace.id, userId);
-  console.log('8. Service: Channels fetched:', channels);
+    // Get channels for the workspace
+    console.log('7. Service: Fetching channels for workspace:', workspace.id);
+    const channels = await getWorkspaceChannels(workspace.id, userId);
+    console.log('8. Service: Channels fetched:', channels);
 
-  const workspaceWithChannels: WorkspaceWithChannels = {
-    ...workspace,
-    channels
-  };
+    return {
+      ...workspace,
+      channels
+    };
+  }));
 
-  console.log('9. Service: Returning workspace with channels:', workspaceWithChannels);
-  return workspaceWithChannels;
+  console.log('9. Service: Returning workspaces with channels:', workspacesWithChannels);
+  return workspacesWithChannels;
 };
 
 export const getWorkspaceById = async (
