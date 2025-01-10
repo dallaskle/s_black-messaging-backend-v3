@@ -11,7 +11,11 @@
     "dev": "ts-node src/index.ts",
     "test:auth": "jest src/__tests__/auth",
     "test:auth:watch": "jest --watch src/__tests__/auth",
-    "test:auth:coverage": "jest --coverage src/__tests__/auth"
+    "test:auth:coverage": "jest --coverage src/__tests__/auth",
+    "test:workspace": "jest src/__tests__/workspace",
+    "test:workspace:watch": "jest --watch src/__tests__/workspace",
+    "test:workspace:coverage": "jest --coverage src/__tests__/workspace",
+    "test:all:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "",
