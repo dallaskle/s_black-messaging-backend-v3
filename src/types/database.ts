@@ -10,6 +10,10 @@ export interface Workspace {
     created_at: string;
 }
 
+export interface WorkspaceWithChannels extends Workspace {
+    channels: Channel[];
+}
+
 export interface User {
     id: string;
     email: string;

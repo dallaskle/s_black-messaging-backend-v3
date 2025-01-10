@@ -1,4 +1,4 @@
-import { createWorkspace, getUserWorkspaces, getWorkspaceById, updateWorkspace, deleteWorkspace } from '../../../workspace/services/workspaceService';
+import { createWorkspace, getUserWorkspaces, getWorkspaceById, updateWorkspace, deleteWorkspace, getWorkspaceWithChannels } from '../../../workspace/services/workspaceService';
 import supabase from '../../../config/supabaseClient';
 import AppError from '../../../types/AppError';
 
@@ -348,6 +348,88 @@ describe('workspaceService', () => {
                 mockWorkspace.id,
                 mockWorkspace.owner_id
             )).rejects.toThrow(new AppError('Failed to delete workspace', 500));
+        });
+    });
+
+    describe('getWorkspaceWithChannels', () => {
+        const mockChannels = [
+            {
+                id: 'channel-1',
+                workspace_id: 'test-workspace-id',
+                name: 'General',
+                is_private: false,
+                type: 'channel',
+                topic: 'General discussion',
+                description: 'Main channel',
+                created_by: 'test-user-id',
+                created_at: new Date().toISOString()
+            }
+        ];
+
+        // Tests successful retrieval of workspace with channels
+        // Verifies: Data combination, response format
+        it('should return workspace with channels successfully', async () => {
+            // Mock workspace members check and workspace fetch
+            (supabase.from as jest.Mock).mockReturnValueOnce({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        select: jest.fn().mockResolvedValue({ data: [mockWorkspace] })
+                    })
+                })
+            });
+
+            // Mock channel service call
+            jest.spyOn(require('../../../channel/general/generalChannel.service'), 'getWorkspaceChannels')
+                .mockResolvedValue(mockChannels);
+
+            const result = await getWorkspaceWithChannels(
+                mockWorkspace.owner_id,
+                mockWorkspace.id
+            );
+
+            expect(result).toEqual({
+                ...mockWorkspace,
+                channels: mockChannels
+            });
+        });
+
+        // Tests handling of non-existent workspace
+        // Verifies: Null response, error handling
+        it('should return null for non-existent workspace', async () => {
+            (supabase.from as jest.Mock).mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        select: jest.fn().mockResolvedValue({ data: [] })
+                    })
+                })
+            });
+
+            const result = await getWorkspaceWithChannels(
+                mockWorkspace.owner_id,
+                'non-existent-id'
+            );
+
+            expect(result).toBeNull();
+        });
+
+        // Tests error handling during channel fetch
+        // Verifies: Error propagation
+        it('should handle channel fetch errors', async () => {
+            (supabase.from as jest.Mock).mockReturnValueOnce({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        select: jest.fn().mockResolvedValue({ data: [mockWorkspace] })
+                    })
+                })
+            });
+
+            jest.spyOn(require('../../../channel/general/generalChannel.service'), 'getWorkspaceChannels')
+                .mockRejectedValue(new Error('Failed to fetch channels'));
+
+            await expect(getWorkspaceWithChannels(
+                mockWorkspace.owner_id,
+                mockWorkspace.id
+            )).rejects.toThrow('Failed to fetch channels');
         });
     });
 }); 

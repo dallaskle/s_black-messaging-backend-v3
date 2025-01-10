@@ -12,6 +12,7 @@ router.use(authenticateToken);
 // Public workspace routes (for workspace members)
 router.post('/', workspaceController.createWorkspace);
 router.get('/', workspaceController.getUserWorkspaces);
+router.get('/channels', workspaceController.getWorkspaceWithChannels);
 router.get('/:workspaceId', workspaceController.getWorkspacebyId);
 router.get('/:workspaceId/members', memberController.getWorkspaceMembers);
 

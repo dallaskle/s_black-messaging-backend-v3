@@ -1,4 +1,4 @@
-import { createWorkspace, getUserWorkspaces, getWorkspacebyId, updateWorkspacebyId, deleteWorkspace } from '../../../workspace/controllers/workspaceController';
+import { createWorkspace, getUserWorkspaces, getWorkspacebyId, updateWorkspacebyId, deleteWorkspace, getWorkspaceWithChannels } from '../../../workspace/controllers/workspaceController';
 import * as workspaceService from '../../../workspace/services/workspaceService';
 import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
@@ -260,6 +260,80 @@ describe('workspaceController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith({
                 message: 'Workspace not found'
             });
+        });
+    });
+
+    describe('getWorkspaceWithChannels', () => {
+        const mockWorkspaceWithChannels = {
+            ...mockWorkspace,
+            channels: [
+                {
+                    id: 'channel-1',
+                    workspace_id: 'test-workspace-id',
+                    name: 'General',
+                    is_private: false,
+                    type: 'channel',
+                    topic: 'General discussion',
+                    description: 'Main channel',
+                    created_by: 'test-user-id',
+                    created_at: new Date().toISOString()
+                }
+            ]
+        };
+
+        // Tests successful retrieval of workspace with channels
+        // Verifies: Response format, service call parameters
+        it('should return workspace with channels successfully', async () => {
+            const mockRequest = createMockRequest(
+                {},
+                { workspaceId: 'test-workspace-id' },
+                { user: { id: 'test-user-id' } }
+            );
+            const mockResponse = createMockResponse();
+
+            (workspaceService.getWorkspaceWithChannels as jest.Mock).mockResolvedValue(mockWorkspaceWithChannels);
+
+            await getWorkspaceWithChannels(mockRequest as any, mockResponse as any);
+
+            expect(workspaceService.getWorkspaceWithChannels).toHaveBeenCalledWith(
+                'test-user-id',
+                'test-workspace-id'
+            );
+            expect(mockResponse.json).toHaveBeenCalledWith(mockWorkspaceWithChannels);
+        });
+
+        // Tests authentication requirement
+        // Verifies: Unauthorized access handling
+        it('should handle missing authentication', async () => {
+            const mockRequest = createMockRequest(
+                {},
+                { workspaceId: 'test-workspace-id' }
+            );
+            const mockResponse = createMockResponse();
+
+            await getWorkspaceWithChannels(mockRequest as any, mockResponse as any);
+
+            expect(mockResponse.status).toHaveBeenCalledWith(401);
+            expect(mockResponse.json).toHaveBeenCalledWith({
+                message: 'Authentication required'
+            });
+        });
+
+        // Tests error handling for non-existent workspace
+        // Verifies: Error status codes, error messages
+        it('should handle non-existent workspace', async () => {
+            const mockRequest = createMockRequest(
+                {},
+                { workspaceId: 'non-existent-id' },
+                { user: { id: 'test-user-id' } }
+            );
+            const mockResponse = createMockResponse();
+
+            (workspaceService.getWorkspaceWithChannels as jest.Mock).mockResolvedValue(null);
+
+            await getWorkspaceWithChannels(mockRequest as any, mockResponse as any);
+
+            expect(mockResponse.json).toHaveBeenCalledWith(null);
         });
     });
 }); 

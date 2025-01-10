@@ -1,6 +1,7 @@
 import supabase from '../../config/supabaseClient';
-import { Workspace } from '../../types/database';
+import { Channel, Workspace, WorkspaceWithChannels } from '../../types/database';
 import AppError from '../../types/AppError';
+import { getWorkspaceChannels } from '../../channel/general/generalChannel.service';
 
 export const createWorkspace = async (
   name: string,
@@ -77,6 +78,38 @@ export const getUserWorkspaces = async (userId: string): Promise<Workspace[]> =>
 
   if (error) throw new AppError(error.message, 400);
   return workspaces || [];
+};
+
+export const getWorkspaceWithChannels = async (userId: string): Promise<WorkspaceWithChannels | null> => {
+  console.log('1. Service: Starting getWorkspaceWithChannels');
+  console.log('2. Service: User ID:', userId);
+
+  // Get user's workspaces
+const workspaces = await getUserWorkspaces(userId);
+
+  console.log('3. Service: Workspace query result:', { workspaces });
+
+  if (!workspaces || workspaces.length === 0) {
+    console.log('5. Service: No workspaces found');
+    return null;
+  }
+
+  // Get the first workspace
+  const workspace = workspaces[0];
+  console.log('6. Service: Selected workspace:', workspace);
+
+  // Get channels for the workspace
+  console.log('7. Service: Fetching channels for workspace:', workspace.id);
+  const channels = await getWorkspaceChannels(workspace.id, userId);
+  console.log('8. Service: Channels fetched:', channels);
+
+  const workspaceWithChannels: WorkspaceWithChannels = {
+    ...workspace,
+    channels
+  };
+
+  console.log('9. Service: Returning workspace with channels:', workspaceWithChannels);
+  return workspaceWithChannels;
 };
 
 export const getWorkspaceById = async (

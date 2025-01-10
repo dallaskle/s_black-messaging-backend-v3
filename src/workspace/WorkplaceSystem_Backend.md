@@ -13,6 +13,7 @@
   - `POST /workspaces/:id/members`: Add/invite members.
   - `GET /workspaces/:id/members`: List members.
   - `DELETE /workspaces/:id/members/:userId`: Remove member.
+  - `GET /workspaces/channels`: Get workspace with its channels.
 
 ### 2. Controllers
 
@@ -22,6 +23,9 @@
   - Creates workspaces with unique URLs.
   - Validates workspace ownership.
   - Manages workspace settings.
+  - Retrieves workspace details with associated channels
+  - Validates user membership
+  - Returns combined workspace and channel data
 - **Returns:**
   - Workspace data.
   - Member information.
@@ -167,6 +171,13 @@
 - Check workspace membership.
 - Validate role permissions.
 - Execute authorized actions.
+
+### 4. Channel Integration
+- Fetch workspace details
+- Retrieve associated channels
+- Combine data for response
+- Validate user permissions
+- Handle non-existent cases
 
 ---
 
