@@ -1,6 +1,6 @@
-import supabase from '../config/supabaseClient';
-import { Reaction } from '../types/database';
-import AppError from '../types/AppError';
+import supabase from '../../config/supabaseClient';
+import { Reaction } from '../../types/database';
+import AppError from '../../types/AppError';
 
 const checkChannelAccess = async (channelId: string, userId: string): Promise<void> => {
   const { data: membership } = await supabase

@@ -6,7 +6,7 @@ import workspaceRoutes from './workspace/workspaceRoutes';
 import channelRoutes from './channel/index';
 import messageRoutes from './routes/messageRoutes';
 import messageV2Routes from './messages_v2/messageRoutes';
-import reactionRoutes from './routes/reactionRoutes';
+import reactionRoutes from './reactions/reactionRoutes';
 import fileRoutes from './files/fileRoutes';
 
 export function createServer() {
