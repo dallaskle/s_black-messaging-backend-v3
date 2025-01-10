@@ -10,6 +10,10 @@ export interface Workspace {
     created_at: string;
 }
 
+export interface WorkspaceWithChannels extends Workspace {
+    channels: Channel[];
+}
+
 export interface User {
     id: string;
     email: string;
@@ -64,14 +68,17 @@ export interface Message {
 
 export interface File {
     id: string;
+    file_id?: string;
     channel_id: string;
     user_id: string;
-    file_url: string;
     file_name: string;
     file_size: number;
     mime_type: string;
-    thumbnail_url?: string;
-    uploaded_at: string;
+    file_url: string;
+    channels?: {
+        workspace_id: string;
+        is_private: boolean;
+    };
 }
 
 export interface ChannelMember {

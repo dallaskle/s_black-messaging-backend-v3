@@ -1,13 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import authRoutes from './routes/authRoutes';
-import userRoutes from './routes/userRoutes';
-import workspaceRoutes from './routes/workspaceRoutes';
-import channelRoutes from './routes/channelRoutes';
+import authRoutes from './auth/authRoutes';
+import workspaceRoutes from './workspace/workspaceRoutes';
+import channelRoutes from './channel/index';
 import messageRoutes from './routes/messageRoutes';
-import reactionRoutes from './routes/reactionRoutes';
-import fileRoutes from './routes/fileRoutes';
+import messageV2Routes from './messages_v2/messageRoutes';
+import reactionRoutes from './reactions/reactionRoutes';
+import fileRoutes from './files/fileRoutes';
+
 export function createServer() {
   const app = express();
   
@@ -24,13 +25,12 @@ export function createServer() {
   
   // Routes
   app.use('/auth', authRoutes);
-  app.use('/api/users', userRoutes);
   app.use('/api/workspaces', workspaceRoutes);
   app.use('/api', channelRoutes);
   app.use('/api', messageRoutes);
+  app.use('/api/v2', messageV2Routes); //SEE: V2
   app.use('/api', reactionRoutes);
   app.use('/api', fileRoutes);
-
   // Protected route example
   app.get('/api/protected', (req, res) => {
     res.json({ message: 'Protected data' });

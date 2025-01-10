@@ -1,7 +1,7 @@
 import supabase, { serviceClient } from '../config/supabaseClient';
 import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
-import { fileService } from './fileService';
+import { fileService } from '../files/services/fileService';
 import { compareSync } from 'bcryptjs';
 
 interface RawReaction {
@@ -470,6 +470,12 @@ export const createMessageWithFile = async (
     let uploadedFile;
     if (file) {
       uploadedFile = await fileService.uploadFile(channelId, userId, file);
+      
+      // Verify we have a valid uploaded file with URL before proceeding
+      if (!uploadedFile?.file_url) {
+        console.error('[Message Creation] File upload failed - missing URL:', uploadedFile);
+        throw new AppError('File upload failed - missing URL', 500);
+      }
     }
 
     // Create the message

@@ -1,7 +1,4 @@
 import express from 'express';
-import userRoutes from './routes/userRoutes'
-import workspaceRoutes from './routes/workspaceRoutes'
-import fileRoutes from './routes/fileRoutes'
 
 const app = express();
 

@@ -1,2 +1,5 @@
+# Start of Selection
 .env
 node_modules/
+coverage/
+# End of Selection
