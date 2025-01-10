@@ -85,7 +85,7 @@ export const getWorkspaceChannels = async (
   // Get all private channels where user is a member
   const { data: privateChannels, error: privateError } = await supabase
     .from('channels')
-    .select('*, channel_members(*)')
+    .select('*, channel_members!inner(*)')
     .eq('workspace_id', workspaceId)
     .eq('is_private', true)
     .eq('channel_members.user_id', userId);
