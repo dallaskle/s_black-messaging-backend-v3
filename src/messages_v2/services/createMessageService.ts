@@ -1,7 +1,7 @@
 import supabase from '../../config/supabaseClient';
 import { EnrichedMessage } from '../../types/database';
 import AppError from '../../types/AppError';
-import { fileService } from '../../services/fileService';
+import { fileService } from '../../files/services/fileService';
 import { enrichMessageWithDetails } from '../utils/messageEnricher';
 
 export const createMessage = async (

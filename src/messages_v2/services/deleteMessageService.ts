@@ -1,6 +1,6 @@
 import supabase from '../../config/supabaseClient';
 import AppError from '../../types/AppError';
-import { fileService } from '../../services/fileService';
+import { fileService } from '../../files/services/fileService';
 
 export const deleteMessage = async (
   messageId: string,

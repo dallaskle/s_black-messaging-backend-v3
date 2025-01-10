@@ -1,6 +1,6 @@
 import { createMessage, createMessageWithFile } from '../../../messages_v2/services/createMessageService';
 import supabase from '../../../config/supabaseClient';
-import { fileService } from '../../../services/fileService';
+import { fileService } from '../../../files/services/fileService';
 import AppError from '../../../types/AppError';
 import { Message, File } from '../../../types/database';
 

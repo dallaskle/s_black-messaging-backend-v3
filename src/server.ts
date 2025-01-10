@@ -7,7 +7,7 @@ import channelRoutes from './channel/index';
 import messageRoutes from './routes/messageRoutes';
 import messageV2Routes from './messages_v2/messageRoutes';
 import reactionRoutes from './routes/reactionRoutes';
-import fileRoutes from './routes/fileRoutes';
+import fileRoutes from './files/fileRoutes';
 
 export function createServer() {
   const app = express();

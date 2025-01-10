@@ -1,7 +1,7 @@
 import express from 'express';
-import { fileController } from '../controllers/fileController';
+import { fileController } from './controllers/fileController';
 import { authenticateToken } from '../middleware/authMiddleWare/authenticateToken';
-import { fileService } from '../services/fileService';
+import { fileService } from './services/fileService';
 import { NextFunction, Request, Response } from 'express';
 import AppError from '../types/AppError';
 

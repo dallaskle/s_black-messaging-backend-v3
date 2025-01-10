@@ -1,7 +1,7 @@
 import supabase, { serviceClient } from '../config/supabaseClient';
 import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
-import { fileService } from './fileService';
+import { fileService } from '../files/services/fileService';
 import { compareSync } from 'bcryptjs';
 
 interface RawReaction {
