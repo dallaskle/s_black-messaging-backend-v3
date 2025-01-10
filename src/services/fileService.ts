@@ -50,9 +50,15 @@ export const fileService = {
         throw new Error(`Storage error: ${storageError.message}`);
       }
 
-      console.log('[File Upload] Storage upload successful:', { fileId });
+      // Get the public URL for the file
+      const { data: { publicUrl } } = serviceClient
+        .storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
 
-      // Store the signed URL in the database
+      console.log('[File Upload] Storage upload successful:', { fileId, publicUrl });
+
+      // Store file record with the public URL
       const { data, error } = await supabase
         .from('files')
         .insert({
@@ -62,6 +68,7 @@ export const fileService = {
           file_name: file.originalname,
           file_size: file.size,
           mime_type: file.mimetype,
+          file_url: publicUrl
         })
         .select()
         .single();
