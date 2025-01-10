@@ -2,32 +2,49 @@ import supabase, { serviceClient } from '../config/supabaseClient';
 import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
 import { fileService } from './fileService';
+import { compareSync } from 'bcryptjs';
 
 interface RawReaction {
   emoji: string;
   user_id: string;
 }
 
-const STORAGE_BUCKET = process.env.SUPABASE_FILE_STORAGE_TABLE || 'files';
+const STORAGE_BUCKET = process.env.SUPABASE_FILE_STORAGE_TABLE || 's-black-messaging-files';
 
 // Add helper function to get signed URL
 const getSignedUrl = async (file: any) => {
+  console.log('[File URL Signing] Initiating for file:', { fileId: file.id, fileUrl: file.file_url });
   try {
-    const filePath = new URL(file.file_url).pathname.split('/').pop();
+    // Extract just the file path without the storage/v1/object/public part
+    const fileUrl = new URL(file.file_url);
+    const pathParts = fileUrl.pathname.split('/');
+    const bucketIndex = pathParts.indexOf('public') + 1;
+    const filePath = pathParts.slice(bucketIndex).join('/');
+    
+    console.log('[File URL Signing] Extracted file path:', { filePath });
+
     const { data, error } = await serviceClient
       .storage
       .from(STORAGE_BUCKET)
-      .createSignedUrl(filePath!, 3600);
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
 
-    if (error || !data?.signedUrl) {
-      console.error('[File URL Signing] Failed:', { fileId: file.id, error });
-      return file.file_url;
+    if (error) {
+      console.error('[File URL Signing] Failed to create signed URL:', { 
+        fileId: file.id, 
+        error,
+        filePath 
+      });
+      return file.file_url;  // Fall back to public URL if signing fails
     }
 
+    console.log('[File URL Signing] Successfully created signed URL');
     return data.signedUrl;
   } catch (error) {
-    console.error('[File URL Signing] Error:', { fileId: file.id, error });
-    return file.file_url;
+    console.error('[File URL Signing] Error occurred:', { 
+      fileId: file.id, 
+      error: error instanceof Error ? error.message : error 
+    });
+    return file.file_url;  // Fall back to public URL if error occurs
   }
 };
 
@@ -90,8 +107,6 @@ export const createMessage = async (
     messageLength: content.length
   };
 
-  console.log('[Message Creation] Starting process:', logContext);
-
   try {
     const { data: insertedMessage, error: insertError } = await supabase
       .from('messages')
@@ -105,14 +120,10 @@ export const createMessage = async (
       .single();
 
     if (insertError) {
-      console.error('[Message Creation] Failed to insert:', { ...logContext, error: insertError });
       throw new AppError(insertError.message, 500);
     }
 
-    console.log('[Message Creation] Base message inserted:', { messageId: insertedMessage.id });
-
     if (fileIds && fileIds.length > 0) {
-      console.log('[Message Creation] Linking files:', { messageId: insertedMessage.id, fileIds });
       await fileService.linkFilesToMessage(insertedMessage.id, fileIds);
     }
 
@@ -142,11 +153,6 @@ export const createMessage = async (
       .single();
 
     if (fetchError) {
-      console.error('[Message Creation] Failed to fetch full message details', { 
-        ...logContext, 
-        messageId: insertedMessage.id, 
-        error: fetchError 
-      });
       throw new AppError(fetchError.message, 500);
     }
 
@@ -161,19 +167,9 @@ export const createMessage = async (
       files: newFiles
     };
 
-    console.log('[Message Creation] Completed successfully:', {
-      messageId: insertedMessage.id,
-      hasFiles: newFiles.length > 0,
-      fileCount: newFiles.length
-    });
-
     return finalMessage;
 
   } catch (error) {
-    console.error('[Message Creation] Unexpected error:', {
-      ...logContext,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
     throw error;
   }
 };
@@ -320,31 +316,23 @@ export const getChannelMessages = async (
 
   const { data: messages, error } = await query;
 
-  console.log('Raw messages from DB:', messages);
-
   if (error) throw new AppError(error.message, 400);
 
   // Transform the data to include user name and process reactions
   const transformedMessages = await Promise.all(messages.map(async (msg) => {
-    console.log('Processing message files:', msg.files);
-    
     // Process files and get signed URLs
     const files = await Promise.all(
       (msg.files || [])
         .filter((f: any) => f.file) // Filter out null files
         .map(async (fileRel: any) => {
           const file = fileRel.file;
-          console.log('Processing file:', file);
           const signedUrl = await getSignedUrl(file);
-          console.log('Got signed URL:', signedUrl);
           return {
             ...file,
             file_url: signedUrl
           };
         })
     );
-
-    console.log('Processed files:', files);
 
     return {
       ...msg,
