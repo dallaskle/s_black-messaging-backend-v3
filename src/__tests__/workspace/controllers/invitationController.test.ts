@@ -2,16 +2,22 @@ import { createInvitation, getInvitations, acceptInvitation, revokeInvitation } 
 import * as invitationService from '../../../workspace/services/invitationService';
 import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
+import { MemberRole } from '../../../types/database';
 
 jest.mock('../../../workspace/services/invitationService');
 
+// Tests the invitation controller's:
+// 1. Invitation creation with expiration and role settings
+// 2. Invitation listing with admin permissions
+// 3. Invitation acceptance with token validation
+// 4. Invitation revocation with admin rights
 describe('invitationController', () => {
     const mockInvitation = {
         id: 'test-invitation-id',
         workspace_id: 'test-workspace-id',
         email: 'test@example.com',
-        role: 'member',
         token: 'test-token',
+        role: 'member' as MemberRole,
         expires_at: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
         single_use: true,
         created_by: 'admin-id',
@@ -25,11 +31,13 @@ describe('invitationController', () => {
     describe('createInvitation', () => {
         const createInvitationData = {
             email: 'test@example.com',
-            role: 'member',
+            role: 'member' as MemberRole,
             expiresIn: 86400000,
             singleUse: true
         };
 
+        // Tests successful invitation creation with all parameters
+        // Verifies: Status code, response format, service parameters
         it('should create invitation successfully', async () => {
             const mockRequest = createMockRequest(
                 createInvitationData,
@@ -54,6 +62,8 @@ describe('invitationController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith(mockInvitation);
         });
 
+        // Tests authentication requirement for invitation creation
+        // Verifies: Unauthorized access handling
         it('should handle unauthorized invitation creation', async () => {
             const mockRequest = createMockRequest(
                 createInvitationData,
@@ -69,6 +79,8 @@ describe('invitationController', () => {
             });
         });
 
+        // Tests admin permission requirement for invitation creation
+        // Verifies: Permission checks, error handling
         it('should handle insufficient permissions', async () => {
             const mockRequest = createMockRequest(
                 createInvitationData,
@@ -90,6 +102,8 @@ describe('invitationController', () => {
     });
 
     describe('getInvitations', () => {
+        // Tests successful retrieval of workspace invitations
+        // Verifies: Response format, service call parameters
         it('should return invitations successfully', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -109,6 +123,8 @@ describe('invitationController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith([mockInvitation]);
         });
 
+        // Tests authentication requirement for invitation listing
+        // Verifies: Unauthorized access handling
         it('should handle unauthorized access', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -130,6 +146,8 @@ describe('invitationController', () => {
             token: 'valid-token'
         };
 
+        // Tests successful invitation acceptance
+        // Verifies: Response format, service call parameters
         it('should accept invitation successfully', async () => {
             const mockRequest = createMockRequest(
                 acceptData,
@@ -141,7 +159,7 @@ describe('invitationController', () => {
             const mockMember = {
                 workspace_id: 'test-workspace-id',
                 user_id: 'new-member-id',
-                role: 'member',
+                role: 'member' as MemberRole,
                 joined_at: new Date().toISOString()
             };
 
@@ -157,6 +175,8 @@ describe('invitationController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith(mockMember);
         });
 
+        // Tests expired invitation handling
+        // Verifies: Error status code, error message
         it('should handle expired invitation', async () => {
             const mockRequest = createMockRequest(
                 acceptData,
@@ -178,6 +198,8 @@ describe('invitationController', () => {
     });
 
     describe('revokeInvitation', () => {
+        // Tests successful invitation revocation
+        // Verifies: Service call parameters, response status
         it('should revoke invitation successfully', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -202,6 +224,8 @@ describe('invitationController', () => {
             expect(mockResponse.send).toHaveBeenCalled();
         });
 
+        // Tests authentication requirement for invitation revocation
+        // Verifies: Unauthorized access handling
         it('should handle unauthorized revocation', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -220,6 +244,8 @@ describe('invitationController', () => {
             });
         });
 
+        // Tests handling of non-existent invitation revocation
+        // Verifies: Error status code, error message
         it('should handle non-existent invitation', async () => {
             const mockRequest = createMockRequest(
                 {},

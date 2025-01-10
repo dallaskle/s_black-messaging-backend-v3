@@ -4,6 +4,11 @@ import AppError from '../../../types/AppError';
 
 jest.mock('../../../config/supabaseClient');
 
+// Tests the workspace service's:
+// 1. Core workspace operations (CRUD)
+// 2. Database interactions with Supabase
+// 3. Permission validations
+// 4. Error handling for database operations
 describe('workspaceService', () => {
     const mockWorkspace = {
         id: 'test-workspace-id',
@@ -19,6 +24,8 @@ describe('workspaceService', () => {
     });
 
     describe('createWorkspace', () => {
+        // Tests successful workspace creation with URL validation
+        // Verifies: Database calls, response format, URL uniqueness check
         it('should create a workspace successfully', async () => {
             // Mock workspace URL check
             (supabase.from as jest.Mock).mockReturnValue({
@@ -44,6 +51,8 @@ describe('workspaceService', () => {
             expect(supabase.from).toHaveBeenCalledWith('workspaces');
         });
 
+        // Tests duplicate workspace URL handling
+        // Verifies: URL uniqueness validation, error handling
         it('should handle duplicate workspace URL', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -60,6 +69,8 @@ describe('workspaceService', () => {
             )).rejects.toThrow(new AppError('Workspace URL already exists', 400));
         });
 
+        // Tests database error handling during creation
+        // Verifies: Error propagation, error messages
         it('should handle database errors', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -80,6 +91,8 @@ describe('workspaceService', () => {
     });
 
     describe('getUserWorkspaces', () => {
+        // Tests successful retrieval of user's workspaces
+        // Verifies: Database query, response format
         it('should return user workspaces', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -95,6 +108,8 @@ describe('workspaceService', () => {
             expect(supabase.from).toHaveBeenCalledWith('workspace_members');
         });
 
+        // Tests empty workspace list handling
+        // Verifies: Empty result handling
         it('should handle no workspaces found', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -111,8 +126,10 @@ describe('workspaceService', () => {
     });
 
     describe('getWorkspaceById', () => {
+        // Tests successful workspace retrieval with permissions
+        // Verifies: Permission check, database query
         it('should return workspace details', async () => {
-            // Mock member check
+            // Mock member check and workspace fetch
             (supabase.from as jest.Mock).mockReturnValueOnce({
                 select: jest.fn().mockReturnValue({
                     eq: jest.fn().mockReturnValue({
@@ -137,6 +154,8 @@ describe('workspaceService', () => {
             expect(result).toEqual(mockWorkspace);
         });
 
+        // Tests non-existent workspace handling
+        // Verifies: Error handling, access control
         it('should handle non-existent workspace', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -152,6 +171,8 @@ describe('workspaceService', () => {
             )).rejects.toThrow(new AppError('Access denied', 403));
         });
 
+        // Tests unauthorized access handling
+        // Verifies: Permission checks, error messages
         it('should handle unauthorized access', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -176,8 +197,10 @@ describe('workspaceService', () => {
             workspace_url: 'updated-workspace'
         };
 
+        // Tests successful workspace update with admin permissions
+        // Verifies: Admin check, update operation, response format
         it('should update workspace successfully', async () => {
-            // Mock admin check
+            // Mock admin check and update operation
             (supabase.from as jest.Mock).mockReturnValueOnce({
                 select: jest.fn().mockReturnValue({
                     eq: jest.fn().mockReturnValue({
@@ -207,6 +230,8 @@ describe('workspaceService', () => {
             expect(result).toEqual({ ...mockWorkspace, ...updateData });
         });
 
+        // Tests non-admin update attempt
+        // Verifies: Permission validation, error handling
         it('should handle non-admin update attempt', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -224,11 +249,43 @@ describe('workspaceService', () => {
                 updateData
             )).rejects.toThrow(new AppError('Access denied', 403));
         });
+
+        // Tests database error handling during update
+        // Verifies: Error propagation, error messages
+        it('should handle database errors during update', async () => {
+            (supabase.from as jest.Mock).mockReturnValueOnce({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        eq: jest.fn().mockReturnValue({
+                            single: jest.fn().mockResolvedValue({ data: { role: 'admin' } })
+                        })
+                    })
+                })
+            }).mockReturnValueOnce({
+                update: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        select: jest.fn().mockReturnValue({
+                            single: jest.fn().mockResolvedValue({ 
+                                error: new Error('Database error') 
+                            })
+                        })
+                    })
+                })
+            });
+
+            await expect(updateWorkspace(
+                mockWorkspace.id,
+                mockWorkspace.owner_id,
+                updateData
+            )).rejects.toThrow(new AppError('Failed to update workspace', 500));
+        });
     });
 
     describe('deleteWorkspace', () => {
+        // Tests successful workspace deletion by admin
+        // Verifies: Admin check, deletion operation
         it('should delete workspace successfully', async () => {
-            // Mock admin check
+            // Mock admin check and deletion
             (supabase.from as jest.Mock).mockReturnValueOnce({
                 select: jest.fn().mockReturnValue({
                     eq: jest.fn().mockReturnValue({
@@ -248,6 +305,8 @@ describe('workspaceService', () => {
             expect(supabase.from).toHaveBeenCalledWith('workspaces');
         });
 
+        // Tests non-admin deletion attempt
+        // Verifies: Permission validation, error handling
         it('should handle non-admin deletion attempt', async () => {
             (supabase.from as jest.Mock).mockReturnValue({
                 select: jest.fn().mockReturnValue({
@@ -265,6 +324,8 @@ describe('workspaceService', () => {
             )).rejects.toThrow(new AppError('Access denied', 403));
         });
 
+        // Tests database errors during deletion
+        // Verifies: Error handling, error messages
         it('should handle database errors during deletion', async () => {
             // Mock admin check success but deletion failure
             (supabase.from as jest.Mock).mockReturnValueOnce({

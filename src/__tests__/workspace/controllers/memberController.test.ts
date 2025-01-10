@@ -2,14 +2,20 @@ import { getWorkspaceMembers, addMember, updateMember, removeMember } from '../.
 import * as memberService from '../../../workspace/services/memberService';
 import { createMockRequest, createMockResponse } from '../../utils/testUtils';
 import AppError from '../../../types/AppError';
+import { MemberRole } from '../../../types/database';
 
 jest.mock('../../../workspace/services/memberService');
 
+// Tests the member controller's:
+// 1. Member listing with permissions
+// 2. Member addition with role assignment
+// 3. Member updates (role and display name)
+// 4. Member removal with admin protection
 describe('memberController', () => {
     const mockMember = {
         workspace_id: 'test-workspace-id',
         user_id: 'test-user-id',
-        role: 'member',
+        role: 'member' as MemberRole,
         display_name: 'Test User',
         joined_at: new Date().toISOString()
     };
@@ -19,6 +25,8 @@ describe('memberController', () => {
     });
 
     describe('getWorkspaceMembers', () => {
+        // Tests successful retrieval of workspace members
+        // Verifies: Response format, service call parameters
         it('should return workspace members successfully', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -38,6 +46,8 @@ describe('memberController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith([mockMember]);
         });
 
+        // Tests authentication requirement for member listing
+        // Verifies: Unauthorized access handling
         it('should handle unauthorized access', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -57,9 +67,11 @@ describe('memberController', () => {
     describe('addMember', () => {
         const addMemberData = {
             userId: 'new-user-id',
-            role: 'member'
+            role: 'member' as MemberRole
         };
 
+        // Tests successful member addition
+        // Verifies: Status code, response format, service parameters
         it('should add member successfully', async () => {
             const mockRequest = createMockRequest(
                 addMemberData,
@@ -77,6 +89,8 @@ describe('memberController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith(newMember);
         });
 
+        // Tests duplicate member handling
+        // Verifies: Error response, error status code
         it('should handle duplicate member', async () => {
             const mockRequest = createMockRequest(
                 addMemberData,
@@ -99,10 +113,12 @@ describe('memberController', () => {
 
     describe('updateMember', () => {
         const updateData = {
-            role: 'admin',
+            role: 'admin' as MemberRole,
             display_name: 'Updated Name'
         };
 
+        // Tests successful member update with valid data
+        // Verifies: Service call parameters, response format
         it('should update member successfully', async () => {
             const mockRequest = createMockRequest(
                 updateData,
@@ -128,6 +144,8 @@ describe('memberController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith(updatedMember);
         });
 
+        // Tests authentication requirement for member updates
+        // Verifies: Unauthorized access handling
         it('should handle unauthorized update attempt', async () => {
             const mockRequest = createMockRequest(
                 updateData,
@@ -146,6 +164,8 @@ describe('memberController', () => {
             });
         });
 
+        // Tests handling of updates to non-existent members
+        // Verifies: Error status code, error message
         it('should handle non-existent member update', async () => {
             const mockRequest = createMockRequest(
                 updateData,
@@ -168,6 +188,8 @@ describe('memberController', () => {
             });
         });
 
+        // Tests permission checks for member updates
+        // Verifies: Access control, error handling
         it('should handle insufficient permissions', async () => {
             const mockRequest = createMockRequest(
                 updateData,
@@ -192,6 +214,8 @@ describe('memberController', () => {
     });
 
     describe('removeMember', () => {
+        // Tests successful member removal
+        // Verifies: Service call parameters, response status
         it('should remove member successfully', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -216,6 +240,8 @@ describe('memberController', () => {
             expect(mockResponse.send).toHaveBeenCalled();
         });
 
+        // Tests authentication requirement for member removal
+        // Verifies: Unauthorized access handling
         it('should handle unauthorized removal attempt', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -234,6 +260,8 @@ describe('memberController', () => {
             });
         });
 
+        // Tests prevention of last admin removal
+        // Verifies: Business rule enforcement, error handling
         it('should prevent self-removal for last admin', async () => {
             const mockRequest = createMockRequest(
                 {},
@@ -256,6 +284,8 @@ describe('memberController', () => {
             });
         });
 
+        // Tests handling of non-existent member removal
+        // Verifies: Error status code, error message
         it('should handle non-existent member removal', async () => {
             const mockRequest = createMockRequest(
                 {},

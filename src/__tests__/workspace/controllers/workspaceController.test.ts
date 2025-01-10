@@ -5,6 +5,11 @@ import AppError from '../../../types/AppError';
 
 jest.mock('../../../workspace/services/workspaceService');
 
+// Tests the workspace controller's:
+// 1. Workspace creation with validation
+// 2. Workspace retrieval (single and list)
+// 3. Workspace updates with permission checks
+// 4. Workspace deletion with cascade
 describe('workspaceController', () => {
     const mockWorkspace = {
         id: 'test-workspace-id',
@@ -25,6 +30,8 @@ describe('workspaceController', () => {
             workspace_url: 'test-workspace'
         };
 
+        // Tests successful workspace creation with valid data
+        // Verifies: Status code, response format, service call
         it('should create a workspace successfully', async () => {
             const mockRequest = createMockRequest({
                 ...createWorkspaceData,
@@ -40,6 +47,8 @@ describe('workspaceController', () => {
             expect(mockResponse.json).toHaveBeenCalledWith(mockWorkspace);
         });
 
+        // Tests authentication requirement for workspace creation
+        // Verifies: Unauthorized access handling
         it('should handle missing authentication', async () => {
             const mockRequest = createMockRequest(createWorkspaceData);
             const mockResponse = createMockResponse();
@@ -52,6 +61,8 @@ describe('workspaceController', () => {
             });
         });
 
+        // Tests error handling for service-level failures
+        // Verifies: Error status codes, error messages
         it('should handle service errors', async () => {
             const mockRequest = createMockRequest({
                 ...createWorkspaceData,
