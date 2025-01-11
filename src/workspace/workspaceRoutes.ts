@@ -4,6 +4,7 @@ import * as memberController from './controllers/memberController';
 import * as invitationController from './controllers/invitationController';
 import { authenticateToken } from '../middleware/authMiddleWare/authenticateToken';
 import { isWorkspaceAdmin } from '../middleware/authMiddleWare/isWorkspaceAdmin';
+import * as memberListController from './controllers/memberListController';
 const router = express.Router();
 
 // Apply authentication middleware to all workspace routes
@@ -45,6 +46,19 @@ router.delete(
   '/:workspaceId/invitations/:invitationId',
   isWorkspaceAdmin,
   invitationController.revokeInvitation
+);
+
+// Member list routes
+router.get(
+  '/:workspaceId/members/list',
+  authenticateToken,
+  memberListController.getWorkspaceMembers
+);
+
+router.get(
+  '/channels/:channelId/members/list',
+  authenticateToken,
+  memberListController.getChannelMembers
 );
 
 export default router; 
