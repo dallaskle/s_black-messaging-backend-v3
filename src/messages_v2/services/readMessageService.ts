@@ -194,7 +194,8 @@ export const getThreadMessages = async (
         users: msg.users,
         name: workspaceMember?.display_name || msg.users.name,
         reactions: {},
-        userReactions: []
+        userReactions: [],
+        status: msg.status
       };
     }) as EnrichedMessage[];
 

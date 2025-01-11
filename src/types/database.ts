@@ -64,7 +64,13 @@ export interface Message {
         user_id: string;
     }>;
     files?: File[];
-    status?: 'deleted' | 'active' | 'edited';
+    status: MessageStatus;
+}
+
+export enum MessageStatus {
+    Deleted = 'deleted',
+    Active = 'active',
+    Edited = 'edited'
 }
 
 export interface File {

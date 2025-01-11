@@ -174,28 +174,33 @@ export const createMessage = async (
   }
 };
 
+// Add this helper function
+const stripMessageToSchemaFields = (message: Message) => {
+  return {
+    id: message.id,
+    channel_id: message.channel_id,
+    user_id: message.user_id,
+    content: message.content,
+    parent_message_id: message.parent_message_id,
+    updated_at: new Date().toISOString(),
+    status: message.status
+  };
+};
+
 export const updateMessage = async (
   messageId: string,
   userId: string,
-  content: string
+  messageToUpdate: Message
 ): Promise<EnrichedMessage> => {
-  // Check if message exists and belongs to user
-  const { data: message } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('id', messageId)
-    .single();
-
-  if (!message) throw new AppError('Message not found', 404);
-  if (message.user_id !== userId) throw new AppError('Access denied', 403);
+  console.log('Updating message:', messageToUpdate);
+  
+  // Strip the message to only include schema fields
+  const schemaMessage = stripMessageToSchemaFields(messageToUpdate);
 
   const { data: updatedMessage, error } = await supabase
     .from('messages')
-    .update({ 
-      content,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', messageId)
+    .update(schemaMessage)
+    .eq('id', messageToUpdate.id)
     .select(`
       *,
       channels!inner (
@@ -203,6 +208,10 @@ export const updateMessage = async (
       )
     `)
     .single();
+
+  console.log('Updated message:', updatedMessage);
+  console.log('Error:', error);
+  console.log('Error message:', error?.message);
 
   if (error) throw new AppError(error.message, 400);
   if (!updatedMessage) throw new AppError('Failed to update message', 500);
@@ -238,6 +247,7 @@ export const deleteMessage = async (
     }
   }
 
+  console.log('Deleting message:', messageId);
   // The message_files records will be automatically deleted due to CASCADE
   const { error } = await supabase
     .from('messages')
@@ -245,6 +255,7 @@ export const deleteMessage = async (
     .eq('id', messageId);
 
   if (error) throw new AppError(error.message, 400);
+  console.log('Message deleted:', messageId);
 };
 
 export const getChannelMessages = async (
@@ -439,7 +450,8 @@ export const getThreadMessages = async (
         users: msg.users,
         name: workspaceMember?.display_name || msg.users.name,
         reactions: {},  // Initialize empty for thread messages
-        userReactions: []  // Initialize empty for thread messages
+        userReactions: [],  // Initialize empty for thread messages
+        status: msg.status
       };
     }) as EnrichedMessage[];
 

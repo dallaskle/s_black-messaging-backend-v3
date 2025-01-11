@@ -40,13 +40,13 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
 export const updateMessage = async (req: Request, res: Response): Promise<void> => {
   try {
     const { messageId } = req.params;
-    const { content } = req.body;
+    const data = req.body;
     const userId = req.user?.id;
 
     if (!userId) throw new AppError('Authentication required', 401);
-    if (!content) throw new AppError('Message content is required', 400);
+    if (!data.content) throw new AppError('Message content is required', 400);
 
-    const message = await messageService.updateMessage(messageId, userId, content);
+    const message = await messageService.updateMessage(messageId, userId, data);
     res.json(message);
   } catch (error) {
     if (error instanceof AppError) {
