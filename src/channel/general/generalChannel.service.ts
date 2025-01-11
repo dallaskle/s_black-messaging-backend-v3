@@ -190,43 +190,44 @@ export const deleteChannel = async (
   channelId: string,
   userId: string
 ): Promise<void> => {
-  // Similar access check as updateChannel
-  const { data: channel } = await supabase
+  // First get the channel details
+  const { data: channel, error: channelError } = await supabase
     .from('channels')
     .select('*')
     .eq('id', channelId)
     .single();
 
+  if (channelError) throw new AppError(channelError.message, 400);
   if (!channel) throw new AppError('Channel not found', 404);
 
-  if (channel.is_private) {
-    const { data: membership } = await supabase
-      .from('channel_members')
-      .select('role')
-      .eq('channel_id', channelId)
-      .eq('user_id', userId)
-      .single();
+  // Then check workspace membership and role
+  const { data: workspaceMember, error: memberError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', channel.workspace_id)
+    .eq('user_id', userId)
+    .single();
 
-    if (!membership || membership.role !== 'admin') {
-      throw new AppError('Access denied', 403);
-    }
-  } else {
-    const { data: workspaceMembership } = await supabase
-      .from('workspace_members')
-      .select('role')
-      .eq('workspace_id', channel.workspace_id)
-      .eq('user_id', userId)
-      .single();
+  if (memberError) throw new AppError(memberError.message, 400);
+  if (!workspaceMember) throw new AppError('Not a workspace member', 403);
 
-    if (!workspaceMembership || workspaceMembership.role !== 'admin') {
-      throw new AppError('Access denied', 403);
-    }
+  // Check if user has permission to delete
+  const canDelete = 
+    workspaceMember.role === 'admin' || 
+    channel.created_by === userId;
+
+  if (!canDelete) {
+    throw new AppError('Only workspace admins or channel creators can delete channels', 403);
   }
 
-  const { error } = await supabase
+  // Delete the channel
+  const { error: deleteError } = await supabase
     .from('channels')
     .delete()
     .eq('id', channelId);
 
-  if (error) throw new AppError(error.message, 400);
+  if (deleteError) {
+    console.error('Delete error:', deleteError);
+    throw new AppError(deleteError.message, 400);
+  }
 }; 
