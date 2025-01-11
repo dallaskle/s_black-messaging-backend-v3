@@ -64,6 +64,7 @@ export interface Message {
         user_id: string;
     }>;
     files?: File[];
+    status?: 'deleted' | 'active' | 'edited';
 }
 
 export interface File {
