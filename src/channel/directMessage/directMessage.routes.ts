@@ -4,8 +4,11 @@ import { authenticateToken } from '../../middleware/authMiddleWare/authenticateT
 
 const router = express.Router();
 
+// Apply authentication middleware to all routes
 router.use(authenticateToken);
 
-router.post('/workspaces/:workspaceId/dm', directMessageController.createDMChannel);
+// DM routes
+router.post('/workspaces/:workspaceId/dm', directMessageController.createDM);
+router.post('/workspaces/:workspaceId/group-dm', directMessageController.createGroupDM);
 
 export default router; 
