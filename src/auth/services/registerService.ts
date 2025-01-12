@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { User } from '../../types/database';
 import AppError from '../../types/AppError';
-import supabase from '../../config/supabaseClient';
+import supabase, { serviceClient } from '../../config/supabaseClient';
 
 // Helper functions for validation
 const validateName = (name: string): boolean => {
@@ -20,7 +20,7 @@ const validatePassword = (password: string): boolean => {
     return passwordRegex.test(password);
 };
 
-export const registerUser = async (name: string, email: string, password: string): Promise<User> => {
+export const registerUser = async (name: string, email: string, password: string, autoVerify: boolean = true): Promise<{ user: User; session?: { access_token: string } }> => {
     console.log('A. Starting validation');
     
     // Validate input
@@ -45,7 +45,13 @@ export const registerUser = async (name: string, email: string, password: string
         // Register user with Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
-            password
+            password,
+            options: {
+                data: {
+                    name
+                },
+                emailRedirectTo: `${process.env.FRONTEND_URL}/email-verification`
+            }
         });
 
         console.log('F. Supabase Auth response:', authData, authError);
@@ -60,8 +66,8 @@ export const registerUser = async (name: string, email: string, password: string
             created_at: new Date().toISOString(),
         };
 
-        // Save user data to the users table
-        const { data: existingUser, error: userFetchError } = await supabase
+        // Save user data to the users table using service client
+        const { data: existingUser, error: userFetchError } = await serviceClient
             .from('users')
             .select('*')
             .eq('id', userData.id)
@@ -72,7 +78,7 @@ export const registerUser = async (name: string, email: string, password: string
         }
 
         if (existingUser) {
-            const { error: userError } = await supabase
+            const { error: userError } = await serviceClient
                 .from('users')
                 .update(userData)
                 .eq('id', userData.id);
@@ -80,9 +86,56 @@ export const registerUser = async (name: string, email: string, password: string
             if (userError) {
                 throw new AppError('Failed to save user data to the database', 500);
             }
+        } else {
+            // Insert new user if they don't exist
+            const { error: insertError } = await serviceClient
+                .from('users')
+                .insert(userData);
+            
+            if (insertError) {
+                throw new AppError('Failed to save user data to the database', 500);
+            }
         }
 
-        return userData;
+        // If auto-verify is enabled, create a session
+        if (autoVerify) {
+            console.log('Attempting to auto-verify user:', userData.id);
+            
+            // Update user to be email confirmed using service client
+            const { error: updateError } = await serviceClient.auth.admin.updateUserById(
+                userData.id,
+                { email_confirm: true }
+            );
+
+            if (updateError) {
+                console.error('Auto-verify error:', updateError);
+                throw new AppError('Failed to auto-verify user', 500);
+            }
+
+            console.log('User verified, creating session');
+
+            // Sign in the user to get a session
+            const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (sessionError) {
+                console.error('Session creation error:', sessionError);
+                throw new AppError('Failed to create session', 500);
+            }
+
+            console.log('Session created successfully');
+
+            return {
+                user: userData,
+                session: {
+                    access_token: sessionData.session?.access_token || ''
+                }
+            };
+        }
+
+        return { user: userData };
     
     } catch (error) {
         console.log('G. Error caught in service:', error);

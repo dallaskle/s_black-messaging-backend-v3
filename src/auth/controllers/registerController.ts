@@ -5,11 +5,11 @@ import AppError from '../../types/AppError';
 export const register = async (req: Request, res: Response): Promise<void> => {
     try {
         console.log('1. Controller received request with body:', req.body);
-        const { name, email, password } = req.body;
-        console.log('2. Attempting to register user with:', { name, email });
-        const newUser = await authService.registerUser(name, email, password);
-        console.log('3. Registration successful:', newUser);
-        res.status(201).json(newUser);
+        const { name, email, password, autoVerify = true } = req.body;
+        console.log('2. Attempting to register user with:', { name, email, autoVerify });
+        const result = await authService.registerUser(name, email, password, autoVerify);
+        console.log('3. Registration successful:', result);
+        res.status(201).json(result);
     } catch (error) {
         console.log('4. Error caught in controller:', error);
         if (error instanceof AppError) {
