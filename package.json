@@ -7,7 +7,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node --no-deprecation dist/server.js",
     "dev": "ts-node src/index.ts",
     "postinstall": "npm run build",
     "test:auth": "jest src/__tests__/auth",
