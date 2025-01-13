@@ -2,4 +2,5 @@
 .env
 node_modules/
 coverage/
+dist/
 # End of Selection
