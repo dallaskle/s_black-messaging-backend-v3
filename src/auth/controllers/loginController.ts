@@ -12,8 +12,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         // Set refresh token in HttpOnly cookie
         res.cookie('refreshToken', sessionData.session.refresh_token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: true,
+            sameSite: 'none',
             maxAge: REFRESH_TOKEN_EXPIRY,
             path: '/'
         });

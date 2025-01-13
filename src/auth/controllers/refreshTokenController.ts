@@ -19,8 +19,8 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
         // Set new refresh token in cookie
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: true,
+            sameSite: 'none',
             maxAge: REFRESH_TOKEN_EXPIRY,
             path: '/'
         });

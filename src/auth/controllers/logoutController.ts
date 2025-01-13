@@ -5,8 +5,8 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
         // Clear the refresh token cookie
         res.clearCookie('refreshToken', {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: true,
+            sameSite: 'none',
             path: '/'
         });
         
