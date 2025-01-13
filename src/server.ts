@@ -17,8 +17,12 @@ export function createServer() {
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Set-Cookie', 'Authorization'],
   }));
+  
+  // Add preflight handling
+  app.options('*', cors());
   
   app.use(cookieParser(process.env.COOKIE_SECRET));
   app.use(express.json());
