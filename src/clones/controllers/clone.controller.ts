@@ -121,13 +121,22 @@ export class CloneController {
         try {
             const { clone_id } = req.params;
             const { message, workspace_id, channel_id } = req.body;
-            console.log('[CloneController] Chat request for clone:', clone_id, 'message:', message.text);
+            
+            console.log('[CloneController] Chat request received:', {
+                clone_id,
+                workspace_id,
+                channel_id,
+                message,
+                headers: req.headers,
+                user: req.user
+            });
 
             const clone = await cloneService.getClone(clone_id);
             if (!clone) {
                 console.log('[CloneController] Error: Clone not found');
                 return res.status(404).json({ error: 'Clone not found' });
             }
+            console.log('[CloneController] Clone found:', clone);
 
             const pineconeIndex = process.env.PINECONE_INDEX;
             if (!pineconeIndex) {
@@ -135,10 +144,15 @@ export class CloneController {
                 return res.status(500).json({ error: 'Pinecone index not configured' });
             }
 
+            if (!message?.text || !Array.isArray(message?.history)) {
+                console.log('[CloneController] Error: Invalid message format:', message);
+                return res.status(400).json({ error: 'Invalid message format. Required: text and history array' });
+            }
+
             const chatResult = await aiService.chat({
                 messages: message.history,
                 clone_id,
-                workspace_id,
+                //workspace_id,
                 channel_id,
                 base_prompt: clone.base_prompt,
                 pinecone_index: pineconeIndex,

@@ -46,24 +46,35 @@ class AIService {
         pinecone_index: string;
         query: string;
     }) {
-        console.log('[AIService] Sending chat request:', {
+        console.log('[AIService] Preparing chat request:', {
             cloneId: payload.clone_id,
             workspaceId: payload.workspace_id,
             channelId: payload.channel_id,
             query: payload.query,
-            messageCount: payload.messages.length
+            messageCount: payload.messages.length,
+            basePrompt: payload.base_prompt,
+            pineconeIndex: payload.pinecone_index,
+            headers: this.axiosInstance.defaults.headers
         });
 
         try {
+            console.log('[AIService] Sending request to Python service:', PYTHON_SERVICE_CONFIG.endpoints.chat);
             const response = await this.axiosInstance.post(PYTHON_SERVICE_CONFIG.endpoints.chat, payload);
             console.log('[AIService] Chat response received:', {
                 cloneId: payload.clone_id,
                 responseLength: response.data.response?.length || 0,
-                hasContext: !!response.data.context
+                hasContext: !!response.data.context,
+                response: response.data
             });
             return response.data;
         } catch (error) {
-            console.log('[AIService] Chat request failed');
+            console.error('[AIService] Chat request failed:', {
+                error: error instanceof AxiosError ? {
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    message: error.message
+                } : error
+            });
             this.handleError(error as AxiosError);
         }
     }
