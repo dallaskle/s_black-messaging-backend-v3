@@ -123,6 +123,44 @@ export interface MessageFile {
     created_at: string;
 }
 
+export type CloneVisibility = 'global' | 'private';
+export type DocumentStatus = 'pending' | 'processed' | 'failed';
+
+export interface Clone {
+    id: string;
+    name: string;
+    description: string | null;
+    base_prompt: string;
+    visibility: CloneVisibility;
+    workspace_id: string | null;
+    created_by_user_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CloneDocument {
+    id: string;
+    clone_id: string;
+    file_name: string;
+    file_type: string;
+    status: DocumentStatus;
+    uploaded_at: string;
+    processed_at: string | null;
+    pinecone_index: string;
+}
+
+export interface AIInteraction {
+    id: string;
+    user_id: string;
+    clone_id: string;
+    workspace_id: string | null;
+    channel_id: string | null;
+    query: string;
+    context: Record<string, any> | null;
+    response: string;
+    created_at: string;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
@@ -135,6 +173,9 @@ export interface Database {
     reactions: Reaction;
     workspace_invitations: WorkspaceInvitation;
     message_files: MessageFile;
+    clones: Clone;
+    clone_documents: CloneDocument;
+    ai_interactions: AIInteraction;
 }
 
 // Enriched message type with processed reactions
