@@ -42,23 +42,12 @@ export const getUserWorkspaces = async (req: Request, res: Response): Promise<vo
 
 export const getWorkspaceWithChannels = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('1. Controller: Starting getWorkspaceWithChannels request');
     const userId = req.user?.id;
-    console.log('2. Controller: User ID:', userId);
+    if (!userId) throw new AppError('Authentication required', 401);
 
-    if (!userId) {
-      console.log('3. Controller: No user ID found - throwing auth error');
-      throw new AppError('Authentication required', 401);
-    }
-
-    console.log('4. Controller: Calling workspaceService.getWorkspaceWithChannels');
     const workspace = await workspaceService.getWorkspaceWithChannels(userId);
-    console.log('5. Controller: Service response:', workspace);
-
     res.json(workspace);
-    console.log('6. Controller: Response sent successfully');
   } catch (error) {
-    console.log('7. Controller: Error caught:', error);
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ message: error.message });
     } else {

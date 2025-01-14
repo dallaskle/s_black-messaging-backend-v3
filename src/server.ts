@@ -8,6 +8,7 @@ import messageRoutes from './routes/messageRoutes';
 import messageV2Routes from './messages_v2/messageRoutes';
 import reactionRoutes from './reactions/reactionRoutes';
 import fileRoutes from './files/fileRoutes';
+import cloneRoutes from './clones/routes/clone.routes';
 
 export function createServer() {
   const app = express();
@@ -17,7 +18,7 @@ export function createServer() {
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-API-Key'],
     exposedHeaders: ['Set-Cookie', 'Authorization'],
   }));
   
@@ -32,9 +33,11 @@ export function createServer() {
   app.use('/api/workspaces', workspaceRoutes);
   app.use('/api', channelRoutes);
   app.use('/api', messageRoutes);
-  app.use('/api/v2', messageV2Routes); //SEE: V2
+  app.use('/api/v2', messageV2Routes);
   app.use('/api', reactionRoutes);
   app.use('/api', fileRoutes);
+  app.use('/api', cloneRoutes);
+
   // Protected route example
   app.get('/api/protected', (req, res) => {
     res.json({ message: 'Protected data' });
