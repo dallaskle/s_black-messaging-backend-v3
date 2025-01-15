@@ -42,7 +42,8 @@ CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     email VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    clone_id UUID REFERENCES clones(id)
 );
 
 -- Workspaces table

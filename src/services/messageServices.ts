@@ -3,6 +3,8 @@ import { Message, EnrichedMessage } from '../types/database';
 import AppError from '../types/AppError';
 import { fileService } from '../files/services/fileService';
 import { compareSync } from 'bcryptjs';
+import { MentionService } from './mentionService';
+import { MentionParserService } from './mentionParserService';
 
 interface RawReaction {
   emoji: string;
@@ -108,12 +110,26 @@ export const createMessage = async (
   };
 
   try {
+    // Get workspace ID for the channel
+    const { data: channel } = await supabase
+      .from('channels')
+      .select('workspace_id')
+      .eq('id', channelId)
+      .single();
+
+    if (!channel) throw new AppError('Channel not found', 404);
+
+    // Parse mentions and format content
+    const mentions = await MentionParserService.parseMessageMentions(content, channel.workspace_id);
+    const formattedContent = MentionParserService.formatMessageWithCloneIds(content, mentions);
+
+    // Create the message
     const { data: insertedMessage, error: insertError } = await supabase
       .from('messages')
       .insert({
         channel_id: channelId,
         user_id: userId,
-        content,
+        content: formattedContent,
         parent_message_id: parentMessageId,
       })
       .select()
@@ -123,11 +139,20 @@ export const createMessage = async (
       throw new AppError(insertError.message, 500);
     }
 
+    // Create mention records
+    for (const mention of mentions) {
+      await MentionService.createMention(
+        insertedMessage.id,
+        mention.cloneId,
+        mention.mentionType
+      );
+    }
+
     if (fileIds && fileIds.length > 0) {
       await fileService.linkFilesToMessage(insertedMessage.id, fileIds);
     }
 
-    // 3. Fetch the newly created message with related data
+    // Fetch the complete message
     const { data: fullMessage, error: fetchError } = await supabase
       .from('messages')
       .select(`
@@ -156,18 +181,13 @@ export const createMessage = async (
       throw new AppError(fetchError.message, 500);
     }
 
-    // 4. Process files array
     const newFiles = fullMessage.files?.map((rel: any) => rel.file) || [];
-    
-    // 5. Enrich with additional data
     const enriched = await enrichMessageWithDetails(fullMessage, userId);
     
-    const finalMessage = {
+    return {
       ...enriched,
       files: newFiles
     };
-
-    return finalMessage;
 
   } catch (error) {
     throw error;
@@ -194,29 +214,72 @@ export const updateMessage = async (
 ): Promise<EnrichedMessage> => {
   console.log('Updating message:', messageToUpdate);
   
-  // Strip the message to only include schema fields
-  const schemaMessage = stripMessageToSchemaFields(messageToUpdate);
+  try {
+    // Get workspace ID for the channel
+    const { data: message } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        channels!inner (
+          workspace_id
+        )
+      `)
+      .eq('id', messageId)
+      .single();
 
-  const { data: updatedMessage, error } = await supabase
-    .from('messages')
-    .update(schemaMessage)
-    .eq('id', messageToUpdate.id)
-    .select(`
-      *,
-      channels!inner (
-        workspace_id
-      )
-    `)
-    .single();
+    if (!message) throw new AppError('Message not found', 404);
+    if (message.user_id !== userId) throw new AppError('Access denied', 403);
 
-  console.log('Updated message:', updatedMessage);
-  console.log('Error:', error);
-  console.log('Error message:', error?.message);
+    // Parse mentions and format content
+    const mentions = await MentionParserService.parseMessageMentions(
+      messageToUpdate.content,
+      message.channels.workspace_id
+    );
+    const formattedContent = MentionParserService.formatMessageWithCloneIds(
+      messageToUpdate.content,
+      mentions
+    );
 
-  if (error) throw new AppError(error.message, 400);
-  if (!updatedMessage) throw new AppError('Failed to update message', 500);
+    // Update message with formatted content
+    const { data: updatedMessage, error: updateError } = await supabase
+      .from('messages')
+      .update({
+        content: formattedContent,
+        updated_at: new Date().toISOString(),
+        status: 'edited'
+      })
+      .eq('id', messageId)
+      .select(`
+        *,
+        channels!inner (
+          workspace_id
+        )
+      `)
+      .single();
 
-  return enrichMessageWithDetails(updatedMessage, userId);
+    if (updateError) throw new AppError(updateError.message, 400);
+    if (!updatedMessage) throw new AppError('Failed to update message', 500);
+
+    // Delete existing mentions for this message
+    await supabase
+      .from('mentions')
+      .delete()
+      .eq('message_id', messageId);
+
+    // Create new mention records
+    for (const mention of mentions) {
+      await MentionService.createMention(
+        messageId,
+        mention.cloneId,
+        mention.mentionType
+      );
+    }
+
+    return enrichMessageWithDetails(updatedMessage, userId);
+  } catch (error) {
+    console.error('Error updating message:', error);
+    throw error;
+  }
 };
 
 export const deleteMessage = async (
@@ -246,6 +309,12 @@ export const deleteMessage = async (
       await fileService.deleteFile(fileRelation.file.id);
     }
   }
+
+  // Delete associated mentions (will be automatically deleted due to CASCADE, but let's be explicit)
+  await supabase
+    .from('mentions')
+    .delete()
+    .eq('message_id', messageId);
 
   console.log('Deleting message:', messageId);
   // The message_files records will be automatically deleted due to CASCADE
@@ -478,12 +547,24 @@ export const createMessageWithFile = async (
   console.log('[Message Creation] Starting process:', logContext);
 
   try {
+    // Get workspace ID for the channel
+    const { data: channel } = await supabase
+      .from('channels')
+      .select('workspace_id')
+      .eq('id', channelId)
+      .single();
+
+    if (!channel) throw new AppError('Channel not found', 404);
+
+    // Parse mentions and format content
+    const mentions = await MentionParserService.parseMessageMentions(content, channel.workspace_id);
+    const formattedContent = MentionParserService.formatMessageWithCloneIds(content, mentions);
+
     // If there's a file, upload it first
     let uploadedFile;
     if (file) {
       uploadedFile = await fileService.uploadFile(channelId, userId, file);
       
-      // Verify we have a valid uploaded file with URL before proceeding
       if (!uploadedFile?.file_url) {
         console.error('[Message Creation] File upload failed - missing URL:', uploadedFile);
         throw new AppError('File upload failed - missing URL', 500);
@@ -496,7 +577,7 @@ export const createMessageWithFile = async (
       .insert({
         channel_id: channelId,
         user_id: userId,
-        content,
+        content: formattedContent,
         parent_message_id: parentMessageId,
       })
       .select()
@@ -505,6 +586,15 @@ export const createMessageWithFile = async (
     if (insertError) {
       console.error('[Message Creation] Failed to insert:', { ...logContext, error: insertError });
       throw new AppError(insertError.message, 500);
+    }
+
+    // Create mention records
+    for (const mention of mentions) {
+      await MentionService.createMention(
+        insertedMessage.id,
+        mention.cloneId,
+        mention.mentionType
+      );
     }
 
     // If we have an uploaded file, link it to the message

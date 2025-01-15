@@ -29,10 +29,19 @@ export const createMessage = async (req: Request, res: Response): Promise<void> 
 
     res.status(201).json(message);
   } catch (error) {
+    console.error('Error creating message:', error);
+    
     if (error instanceof AppError) {
-      res.status(error.statusCode).json({ message: error.message });
+      // Handle specific mention-related errors
+      if (error.message.includes('Clone not found')) {
+        res.status(404).json({ message: 'One or more mentioned clones were not found' });
+      } else if (error.message.includes('Clone not accessible')) {
+        res.status(403).json({ message: 'One or more mentioned clones are not accessible in this workspace' });
+      } else {
+        res.status(error.statusCode).json({ message: error.message });
+      }
     } else {
-      res.status(500).json({ message: 'An unknown error occurred' });
+      res.status(500).json({ message: 'An unknown error occurred while creating the message' });
     }
   }
 };
@@ -49,10 +58,23 @@ export const updateMessage = async (req: Request, res: Response): Promise<void> 
     const message = await messageService.updateMessage(messageId, userId, data);
     res.json(message);
   } catch (error) {
+    console.error('Error updating message:', error);
+
     if (error instanceof AppError) {
-      res.status(error.statusCode).json({ message: error.message });
+      // Handle specific mention-related errors
+      if (error.message.includes('Clone not found')) {
+        res.status(404).json({ message: 'One or more mentioned clones were not found' });
+      } else if (error.message.includes('Clone not accessible')) {
+        res.status(403).json({ message: 'One or more mentioned clones are not accessible in this workspace' });
+      } else if (error.message === 'Message not found') {
+        res.status(404).json({ message: 'Message not found' });
+      } else if (error.message === 'Access denied') {
+        res.status(403).json({ message: 'You do not have permission to edit this message' });
+      } else {
+        res.status(error.statusCode).json({ message: error.message });
+      }
     } else {
-      res.status(500).json({ message: 'An unknown error occurred' });
+      res.status(500).json({ message: 'An unknown error occurred while updating the message' });
     }
   }
 };

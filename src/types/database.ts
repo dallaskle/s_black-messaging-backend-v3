@@ -19,6 +19,7 @@ export interface User {
     email: string;
     name: string;
     created_at: string;
+    clone_id: string | null;
 }
 
 export interface WorkspaceMember {
@@ -161,6 +162,20 @@ export interface AIInteraction {
     created_at: string;
 }
 
+export type MentionType = 'GLOBAL' | 'WORKSPACE';
+
+export interface Mention {
+    id: string;
+    message_id: string;
+    response_message_id: string | null;
+    clone_id: string;
+    mention_type: MentionType;
+    responded: boolean;
+    created_at: string;
+    responded_at: string | null;
+    error: string | null;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
@@ -176,6 +191,7 @@ export interface Database {
     clones: Clone;
     clone_documents: CloneDocument;
     ai_interactions: AIInteraction;
+    mentions: Mention;
 }
 
 // Enriched message type with processed reactions

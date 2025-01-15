@@ -64,6 +64,7 @@ export const registerUser = async (name: string, email: string, password: string
             email: authData.user.email as string,
             name: name,
             created_at: new Date().toISOString(),
+            clone_id: null
         };
 
         // Save user data to the users table using service client
