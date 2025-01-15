@@ -1,6 +1,6 @@
 import supabase from '../config/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import { Clone, Message, Mention } from '../types/database';
+import { Clone, Message, Mention, MessageStatus } from '../types/database';
 import { MentionParserService } from '../services/mentionParserService';
 import { MentionService } from '../services/mentionService';
 import * as messageService from '../services/messageServices';
@@ -39,6 +39,23 @@ async function saveTestData(testData: TestData) {
     const dataPath = path.join(__dirname, 'mentionsTestData.json');
     fs.writeFileSync(dataPath, JSON.stringify(testData, null, 2));
     console.log('Test data saved to:', dataPath);
+}
+
+// Helper function to convert enriched message to regular message format
+function convertToMessage(enrichedMessage: any): Message {
+    return {
+        id: enrichedMessage.id,
+        channel_id: enrichedMessage.channel_id,
+        user_id: enrichedMessage.user_id,
+        content: enrichedMessage.content,
+        parent_message_id: enrichedMessage.parent_message_id,
+        created_at: enrichedMessage.created_at,
+        updated_at: enrichedMessage.updated_at,
+        status: enrichedMessage.status || MessageStatus.Active,
+        channels: enrichedMessage.channels,
+        users: enrichedMessage.users,
+        files: enrichedMessage.files
+    };
 }
 
 async function testMentions() {
@@ -80,13 +97,13 @@ async function testMentions() {
         // Test updating message with different mentions
         console.log('Testing message update...');
         const updatedContent = `Updated: Hello @${globalClone.name}!`;
+        const messageToUpdate = convertToMessage(createdMessage);
+        messageToUpdate.content = updatedContent;
+
         const updatedMessage = await messageService.updateMessage(
             createdMessage.id,
             TEST_USER_ID,
-            {
-                ...createdMessage,
-                content: updatedContent
-            } as Message
+            messageToUpdate
         );
 
         console.log('Updated message:', updatedMessage);

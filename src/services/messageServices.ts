@@ -1,5 +1,5 @@
 import supabase, { serviceClient } from '../config/supabaseClient';
-import { Message, EnrichedMessage } from '../types/database';
+import { Message, EnrichedMessage, CloneMessage } from '../types/database';
 import AppError from '../types/AppError';
 import { fileService } from '../files/services/fileService';
 import { compareSync } from 'bcryptjs';
@@ -91,6 +91,19 @@ const enrichMessageWithDetails = async (
     name: workspaceMember?.display_name || user?.name || 'Unknown',
     reactions: reactionCounts,
     userReactions
+  };
+};
+
+// Add new helper function to enrich clone messages
+const enrichCloneMessageWithDetails = async (
+  message: CloneMessage
+): Promise<EnrichedMessage> => {
+  return {
+    ...message,
+    name: message.clones?.name || 'Unknown Clone',
+    reactions: {},  // Initialize empty for clone messages
+    userReactions: [],  // Initialize empty for clone messages
+    isCloneMessage: true
   };
 };
 
@@ -327,6 +340,7 @@ export const deleteMessage = async (
   console.log('Message deleted:', messageId);
 };
 
+// Update getChannelMessages to include clone messages
 export const getChannelMessages = async (
   channelId: string,
   userId: string,
@@ -365,6 +379,7 @@ export const getChannelMessages = async (
     if (!workspaceMember) throw new AppError('Access denied', 403);
   }
 
+  // Get regular messages
   let query = supabase
     .from('messages')
     .select(`
@@ -386,52 +401,69 @@ export const getChannelMessages = async (
         )
       )
     `)
-    .eq('channel_id', channelId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .eq('channel_id', channelId);
+
+  // Get clone messages
+  let cloneQuery = supabase
+    .from('clone_messages')
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      ),
+      clones!inner (
+        name
+      ),
+      files:clone_message_files (
+        file:files (
+          id,
+          file_url,
+          file_name,
+          file_size,
+          mime_type,
+          thumbnail_url
+        )
+      )
+    `)
+    .eq('channel_id', channelId);
 
   if (before) {
     query = query.lt('created_at', before);
+    cloneQuery = cloneQuery.lt('created_at', before);
   }
 
-  const { data: messages, error } = await query;
+  const [{ data: messages, error }, { data: cloneMessages, error: cloneError }] = await Promise.all([
+    query.order('created_at', { ascending: false }).limit(limit),
+    cloneQuery.order('created_at', { ascending: false }).limit(limit)
+  ]);
 
   if (error) throw new AppError(error.message, 400);
+  if (cloneError) throw new AppError(cloneError.message, 400);
 
-  // Transform the data to include user name and process reactions
-  const transformedMessages = await Promise.all(messages.map(async (msg) => {
-    // Process files and get signed URLs
-    const files = await Promise.all(
-      (msg.files || [])
-        .filter((f: any) => f.file) // Filter out null files
-        .map(async (fileRel: any) => {
-          const file = fileRel.file;
-          const signedUrl = await getSignedUrl(file);
-          return {
-            ...file,
-            file_url: signedUrl
-          };
-        })
-    );
+  // Process and merge messages
+  const enrichedMessages = await Promise.all(
+    messages?.map(msg => enrichMessageWithDetails(msg, userId)) || []
+  );
+  
+  const enrichedCloneMessages = await Promise.all(
+    cloneMessages?.map(msg => enrichCloneMessageWithDetails(msg)) || []
+  );
 
-    return {
-      ...msg,
-      name: msg.users.name,
-      reactions: {},
-      userReactions: [],
-      files
-    };
-  }));
+  // Merge and sort all messages by creation date
+  const allMessages = [...enrichedMessages, ...enrichedCloneMessages]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
 
-  return transformedMessages;
+  return allMessages;
 };
 
+// Update getThreadMessages to include clone messages
 export const getThreadMessages = async (
   messageId: string,
   userId: string,
   limit: number = 50,
   before?: string
-): Promise<(EnrichedMessage & { name: string })[]> => {
+): Promise<EnrichedMessage[]> => {
   // First get the parent message to check access
   const { data: parentMessage } = await supabase
     .from('messages')
@@ -485,49 +517,50 @@ export const getThreadMessages = async (
         name
       )
     `)
-    .eq('parent_message_id', messageId)
-    .order('created_at', { ascending: true })
-    .limit(limit);
+    .eq('parent_message_id', messageId);
+
+  // Get clone messages in the thread
+  let cloneQuery = supabase
+    .from('clone_messages')
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      ),
+      clones!inner (
+        name
+      )
+    `)
+    .eq('parent_message_id', messageId);
 
   if (before) {
     query = query.lt('created_at', before);
+    cloneQuery = cloneQuery.lt('created_at', before);
   }
 
-  const { data: messages, error } = await query;
+  const [{ data: messages, error }, { data: cloneMessages, error: cloneError }] = await Promise.all([
+    query.order('created_at', { ascending: true }).limit(limit),
+    cloneQuery.order('created_at', { ascending: true }).limit(limit)
+  ]);
 
   if (error) throw new AppError(error.message, 400);
+  if (cloneError) throw new AppError(cloneError.message, 400);
 
-  // Get workspace members for the channel's workspace
-  if (messages && messages.length > 0) {
-    const { data: workspaceMembers } = await supabase
-      .from('workspace_members')
-      .select('user_id, display_name')
-      .eq('workspace_id', messages[0].channels.workspace_id);
+  // Process and merge messages
+  const enrichedMessages = await Promise.all(
+    messages?.map(msg => enrichMessageWithDetails(msg, userId)) || []
+  );
+  
+  const enrichedCloneMessages = await Promise.all(
+    cloneMessages?.map(msg => enrichCloneMessageWithDetails(msg)) || []
+  );
 
-    const transformedMessages = messages.map(msg => {
-      const workspaceMember = workspaceMembers?.find(wm => wm.user_id === msg.user_id);
-      
-      return {
-        id: msg.id,
-        channel_id: msg.channel_id,
-        user_id: msg.user_id,
-        content: msg.content,
-        parent_message_id: msg.parent_message_id,
-        created_at: msg.created_at,
-        updated_at: msg.updated_at,
-        channels: msg.channels,
-        users: msg.users,
-        name: workspaceMember?.display_name || msg.users.name,
-        reactions: {},  // Initialize empty for thread messages
-        userReactions: [],  // Initialize empty for thread messages
-        status: msg.status
-      };
-    }) as EnrichedMessage[];
+  // Merge and sort all messages by creation date
+  const allMessages = [...enrichedMessages, ...enrichedCloneMessages]
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .slice(0, limit);
 
-    return transformedMessages;
-  }
-
-  return [];
+  return allMessages;
 };
 
 export const createMessageWithFile = async (

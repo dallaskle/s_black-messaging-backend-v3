@@ -176,6 +176,31 @@ export interface Mention {
     error: string | null;
 }
 
+export interface CloneMessage {
+    id: string;
+    channel_id: string;
+    clone_id: string;
+    content: string;
+    parent_message_id: string | null;
+    created_at: string;
+    updated_at: string | null;
+    status: MessageStatus;
+    channels?: {
+        workspace_id: string;
+    };
+    clones?: {
+        name: string;
+    };
+    files?: File[];
+}
+
+export interface CloneMessageFile {
+    id: string;
+    clone_message_id: string;
+    file_id: string;
+    created_at: string;
+}
+
 // Database schema type that includes all tables
 export interface Database {
     workspaces: Workspace;
@@ -192,11 +217,14 @@ export interface Database {
     clone_documents: CloneDocument;
     ai_interactions: AIInteraction;
     mentions: Mention;
+    clone_messages: CloneMessage;
+    clone_message_files: CloneMessageFile;
 }
 
-// Enriched message type with processed reactions
-export interface EnrichedMessage extends Omit<Message, 'raw_reactions'> {
+// Update EnrichedMessage to handle both user and clone messages
+export interface EnrichedMessage extends Omit<Message | CloneMessage, 'raw_reactions'> {
     name: string;
     reactions: { [emoji: string]: number };
     userReactions: string[];
+    isCloneMessage?: boolean;
 } 
