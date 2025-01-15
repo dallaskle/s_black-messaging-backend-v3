@@ -4,12 +4,6 @@ import AppError from '../../types/AppError';
 
 export const createInvitation = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('[createInvitation] Controller called:', {
-      path: req.path,
-      method: req.method,
-      workspaceId: req.params.workspaceId,
-      body: req.body
-    });
 
     const { workspaceId } = req.params;
     const { email, role = 'member', singleUse = true, expiresIn } = req.body;
