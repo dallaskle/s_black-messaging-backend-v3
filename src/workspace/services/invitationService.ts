@@ -2,6 +2,14 @@ import supabase from '../../config/supabaseClient';
 import { WorkspaceInvitation, WorkspaceMember } from '../../types/database';
 import AppError from '../../types/AppError';
 import { randomBytes } from 'crypto';
+import { emailService } from '../../services/emailService';
+import { config } from '../../config';
+
+interface AdminMembershipWithDetails {
+  role: string;
+  workspaces: { name: string };
+  users: { name: string };
+}
 
 export const createWorkspaceInvitation = async (
   workspaceId: string,
@@ -11,10 +19,19 @@ export const createWorkspaceInvitation = async (
   expiresIn?: number,
   singleUse: boolean = false
 ): Promise<WorkspaceInvitation> => {
-  // Check if admin has permissions
+
+  // Check if admin has permissions and get workspace info
   const { data: adminMembership, error: adminError } = await supabase
     .from('workspace_members')
-    .select('role')
+    .select(`
+      role,
+      workspaces:workspace_id (
+        name
+      ),
+      users:user_id (
+        name
+      )
+    `)
     .eq('workspace_id', workspaceId)
     .eq('user_id', adminId)
     .single();
@@ -23,11 +40,20 @@ export const createWorkspaceInvitation = async (
     throw new AppError('Access denied', 403);
   }
 
+  // Cast to unknown first to avoid type checking errors
+  const membership = adminMembership as unknown as AdminMembershipWithDetails;
+  const workspaceName = membership.workspaces?.name;
+  const inviterName = membership.users?.name;
+
+  if (!workspaceName || !inviterName) {
+    throw new AppError('Failed to retrieve workspace or user details', 500);
+  }
+
   // Generate unique token
   const token = randomBytes(32).toString('hex');
   
   // Calculate expiration if provided
-  const expires_at = expiresIn ? new Date(Date.now() + expiresIn) : null;
+  const expires_at = expiresIn ? new Date(Date.now() + expiresIn).toISOString() : null;
 
   const { data: invitation, error } = await supabase
     .from('workspace_invitations')
@@ -47,6 +73,23 @@ export const createWorkspaceInvitation = async (
 
   if (error) throw new AppError(error.message, 400);
   if (!invitation) throw new AppError('Failed to create invitation', 500);
+
+  // Generate invite link
+  const inviteLink = `${config.app.frontendUrl}/workspaces/${workspaceId}/invite/${token}`;
+
+  // Send invitation email
+  try {
+    await emailService.sendWorkspaceInvite({
+      to: email,
+      inviterName,
+      workspaceName,
+      inviteLink,
+      expiresIn: expiresIn,
+    });
+  } catch (error) {
+    // If email fails, we still return the invitation but log the error
+    console.error('[createWorkspaceInvitation] Failed to send invitation email:', error);
+  }
 
   return invitation;
 };

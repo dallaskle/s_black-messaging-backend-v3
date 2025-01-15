@@ -8,6 +8,7 @@ export const isWorkspaceAdmin = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+
     const { workspaceId } = req.params;
     const userId = req.user?.id;
 
@@ -28,6 +29,7 @@ export const isWorkspaceAdmin = async (
 
     next();
   } catch (error) {
+    console.error('[isWorkspaceAdmin] Error:', error);
     if (error instanceof AppError) {
       res.status(error.statusCode).json({ message: error.message });
     } else {
