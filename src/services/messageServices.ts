@@ -3,8 +3,8 @@ import { Message, EnrichedMessage, CloneMessage } from '../types/database';
 import AppError from '../types/AppError';
 import { fileService } from '../files/services/fileService';
 import { compareSync } from 'bcryptjs';
-import { MentionService } from './mentionService';
-import { MentionParserService } from './mentionParserService';
+import { MentionService } from '../mentions/mentionService';
+import { MentionParserService } from '../mentions/mentionParserService';
 
 interface RawReaction {
   emoji: string;

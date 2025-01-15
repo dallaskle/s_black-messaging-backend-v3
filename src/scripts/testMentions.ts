@@ -1,8 +1,8 @@
 import supabase from '../config/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 import { Clone, Message, Mention, MessageStatus } from '../types/database';
-import { MentionParserService } from '../services/mentionParserService';
-import { MentionService } from '../services/mentionService';
+import { MentionParserService } from '../mentions/mentionParserService';
+import { MentionService } from '../mentions/mentionService';
 import * as messageService from '../services/messageServices';
 import * as fs from 'fs';
 import * as path from 'path';
