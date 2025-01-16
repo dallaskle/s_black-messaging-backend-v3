@@ -1,5 +1,6 @@
 import supabase from '../config/supabaseClient';
 import { Mention, MentionType } from '../types/database';
+import { MentionProcessorService } from './mentionProcessorService';
 
 export class MentionService {
     /**
@@ -24,6 +25,12 @@ export class MentionService {
             .single();
 
         if (error) throw error;
+
+        // Trigger processing of the new mention
+        MentionProcessorService.processMention(mention).catch(error => {
+            console.error('Error processing new mention:', error);
+        });
+
         return mention;
     }
 

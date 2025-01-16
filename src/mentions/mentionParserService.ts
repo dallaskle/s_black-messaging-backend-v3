@@ -24,6 +24,9 @@ export class MentionParserService {
 
         for (const match of mentionMatches) {
             const [originalText, cloneName, existingCloneId] = match;
+            console.log('originalText', originalText);
+            console.log('cloneName', cloneName);
+            console.log('existingCloneId', existingCloneId);
             
             try {
                 // If clone ID is already in the mention, validate it exists
@@ -35,11 +38,15 @@ export class MentionParserService {
                         mentionType: this.determineMentionType(clone, workspaceId),
                         originalText
                     });
+                    console.log('clone', clone);
+                    console.log('mention', mentions);
                     continue;
                 }
 
+                console.log('cloneName', cloneName);
                 // Find clone by name
                 const clone = await this.findCloneByName(cloneName, workspaceId);
+                console.log('clone', clone);
                 if (clone) {
                     mentions.push({
                         cloneName,
@@ -107,16 +114,22 @@ export class MentionParserService {
             .eq('workspace_id', workspaceId)
             .single();
 
+        console.log('workspaceClone', workspaceClone);
         if (workspaceClone) return workspaceClone;
+            // Start of Selection
+            enum CloneVisibility {
+                Global = 'global',
+                Private = 'private'
+            }
 
-        // If no workspace clone found, look for a global clone
-        const { data: globalClone, error: globalError } = await supabase
-            .from('clones')
-            .select('*')
-            .eq('name', name)
-            .eq('visibility', 'global')
-            .is('workspace_id', null)
-            .single();
+            const { data: globalClone, error: globalError } = await supabase
+                .from('clones')
+                .select('*')
+                .eq('name', name)
+                .eq('visibility', CloneVisibility.Global)
+                .single();
+
+        console.log('globalClone', globalClone);
 
         return globalClone || null;
     }

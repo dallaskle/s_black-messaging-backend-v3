@@ -153,7 +153,7 @@ export class CloneController {
                 messages: message.history,
                 clone_id,
                 //workspace_id,
-                channel_id,
+                //channel_id,
                 base_prompt: clone.base_prompt,
                 pinecone_index: pineconeIndex,
                 query: message.text

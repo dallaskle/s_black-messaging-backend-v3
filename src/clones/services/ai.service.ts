@@ -40,16 +40,16 @@ class AIService {
     async chat(payload: {
         messages: Array<{ role: string; content: string }>;
         clone_id: string;
-        workspace_id?: string;
-        channel_id?: string;
+        //workspace_id?: string;
+        //channel_id?: string;
         base_prompt: string;
         pinecone_index: string;
         query: string;
     }) {
         console.log('[AIService] Preparing chat request:', {
             cloneId: payload.clone_id,
-            workspaceId: payload.workspace_id,
-            channelId: payload.channel_id,
+            //workspaceId: payload.workspace_id,
+            //channelId: payload.channel_id,
             query: payload.query,
             messageCount: payload.messages.length,
             basePrompt: payload.base_prompt,
