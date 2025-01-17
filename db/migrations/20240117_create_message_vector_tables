@@ -1,0 +1,16 @@
+CREATE TABLE message_vector_uploads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL,
+    date_uploaded TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(10) NOT NULL CHECK (status IN ('success', 'failed')),
+    first_message_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_message_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    message_count INTEGER NOT NULL,
+    error_message TEXT,
+    CONSTRAINT fk_workspace FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
+
+-- Add index for querying uploads by workspace
+CREATE INDEX idx_message_vector_uploads_workspace ON message_vector_uploads(workspace_id);
+-- Add index for querying by date
+CREATE INDEX idx_message_vector_uploads_date ON message_vector_uploads(date_uploaded);
