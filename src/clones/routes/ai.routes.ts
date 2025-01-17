@@ -5,6 +5,6 @@ import { authenticateToken } from '../../middleware/authMiddleWare/authenticateT
 const router = Router();
 
 // Message search endpoint
-router.post('/message-search', authenticateToken, (req, res) => aiController.messageSearch(req, res));
+router.post('/ai/message-search', authenticateToken, (req, res) => aiController.messageSearch(req, res));
 
-export const aiRoutes = router;
+export default router;
