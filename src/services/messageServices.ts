@@ -1,8 +1,10 @@
 import supabase, { serviceClient } from '../config/supabaseClient';
-import { Message, EnrichedMessage } from '../types/database';
+import { Message, EnrichedMessage, CloneMessage } from '../types/database';
 import AppError from '../types/AppError';
 import { fileService } from '../files/services/fileService';
 import { compareSync } from 'bcryptjs';
+import { MentionService } from '../mentions/mentionService';
+import { MentionParserService } from '../mentions/mentionParserService';
 
 interface RawReaction {
   emoji: string;
@@ -92,6 +94,19 @@ const enrichMessageWithDetails = async (
   };
 };
 
+// Add new helper function to enrich clone messages
+const enrichCloneMessageWithDetails = async (
+  message: CloneMessage
+): Promise<EnrichedMessage> => {
+  return {
+    ...message,
+    name: message.clones?.name || 'Unknown Clone',
+    reactions: {},  // Initialize empty for clone messages
+    userReactions: [],  // Initialize empty for clone messages
+    isCloneMessage: true
+  };
+};
+
 export const createMessage = async (
   channelId: string,
   userId: string,
@@ -108,12 +123,26 @@ export const createMessage = async (
   };
 
   try {
+    // Get workspace ID for the channel
+    const { data: channel } = await supabase
+      .from('channels')
+      .select('workspace_id')
+      .eq('id', channelId)
+      .single();
+
+    if (!channel) throw new AppError('Channel not found', 404);
+
+    // Parse mentions and format content
+    const mentions = await MentionParserService.parseMessageMentions(content, channel.workspace_id);
+    const formattedContent = MentionParserService.formatMessageWithCloneIds(content, mentions);
+
+    // Create the message
     const { data: insertedMessage, error: insertError } = await supabase
       .from('messages')
       .insert({
         channel_id: channelId,
         user_id: userId,
-        content,
+        content: formattedContent,
         parent_message_id: parentMessageId,
       })
       .select()
@@ -123,11 +152,20 @@ export const createMessage = async (
       throw new AppError(insertError.message, 500);
     }
 
+    // Create mention records
+    for (const mention of mentions) {
+      await MentionService.createMention(
+        insertedMessage.id,
+        mention.cloneId,
+        mention.mentionType
+      );
+    }
+
     if (fileIds && fileIds.length > 0) {
       await fileService.linkFilesToMessage(insertedMessage.id, fileIds);
     }
 
-    // 3. Fetch the newly created message with related data
+    // Fetch the complete message
     const { data: fullMessage, error: fetchError } = await supabase
       .from('messages')
       .select(`
@@ -156,18 +194,13 @@ export const createMessage = async (
       throw new AppError(fetchError.message, 500);
     }
 
-    // 4. Process files array
     const newFiles = fullMessage.files?.map((rel: any) => rel.file) || [];
-    
-    // 5. Enrich with additional data
     const enriched = await enrichMessageWithDetails(fullMessage, userId);
     
-    const finalMessage = {
+    return {
       ...enriched,
       files: newFiles
     };
-
-    return finalMessage;
 
   } catch (error) {
     throw error;
@@ -194,29 +227,72 @@ export const updateMessage = async (
 ): Promise<EnrichedMessage> => {
   console.log('Updating message:', messageToUpdate);
   
-  // Strip the message to only include schema fields
-  const schemaMessage = stripMessageToSchemaFields(messageToUpdate);
+  try {
+    // Get workspace ID for the channel
+    const { data: message } = await supabase
+      .from('messages')
+      .select(`
+        *,
+        channels!inner (
+          workspace_id
+        )
+      `)
+      .eq('id', messageId)
+      .single();
 
-  const { data: updatedMessage, error } = await supabase
-    .from('messages')
-    .update(schemaMessage)
-    .eq('id', messageToUpdate.id)
-    .select(`
-      *,
-      channels!inner (
-        workspace_id
-      )
-    `)
-    .single();
+    if (!message) throw new AppError('Message not found', 404);
+    if (message.user_id !== userId) throw new AppError('Access denied', 403);
 
-  console.log('Updated message:', updatedMessage);
-  console.log('Error:', error);
-  console.log('Error message:', error?.message);
+    // Parse mentions and format content
+    const mentions = await MentionParserService.parseMessageMentions(
+      messageToUpdate.content,
+      message.channels.workspace_id
+    );
+    const formattedContent = MentionParserService.formatMessageWithCloneIds(
+      messageToUpdate.content,
+      mentions
+    );
 
-  if (error) throw new AppError(error.message, 400);
-  if (!updatedMessage) throw new AppError('Failed to update message', 500);
+    // Update message with formatted content
+    const { data: updatedMessage, error: updateError } = await supabase
+      .from('messages')
+      .update({
+        content: formattedContent,
+        updated_at: new Date().toISOString(),
+        status: 'edited'
+      })
+      .eq('id', messageId)
+      .select(`
+        *,
+        channels!inner (
+          workspace_id
+        )
+      `)
+      .single();
 
-  return enrichMessageWithDetails(updatedMessage, userId);
+    if (updateError) throw new AppError(updateError.message, 400);
+    if (!updatedMessage) throw new AppError('Failed to update message', 500);
+
+    // Delete existing mentions for this message
+    await supabase
+      .from('mentions')
+      .delete()
+      .eq('message_id', messageId);
+
+    // Create new mention records
+    for (const mention of mentions) {
+      await MentionService.createMention(
+        messageId,
+        mention.cloneId,
+        mention.mentionType
+      );
+    }
+
+    return enrichMessageWithDetails(updatedMessage, userId);
+  } catch (error) {
+    console.error('Error updating message:', error);
+    throw error;
+  }
 };
 
 export const deleteMessage = async (
@@ -247,6 +323,12 @@ export const deleteMessage = async (
     }
   }
 
+  // Delete associated mentions (will be automatically deleted due to CASCADE, but let's be explicit)
+  await supabase
+    .from('mentions')
+    .delete()
+    .eq('message_id', messageId);
+
   console.log('Deleting message:', messageId);
   // The message_files records will be automatically deleted due to CASCADE
   const { error } = await supabase
@@ -258,6 +340,7 @@ export const deleteMessage = async (
   console.log('Message deleted:', messageId);
 };
 
+// Update getChannelMessages to include clone messages
 export const getChannelMessages = async (
   channelId: string,
   userId: string,
@@ -296,6 +379,7 @@ export const getChannelMessages = async (
     if (!workspaceMember) throw new AppError('Access denied', 403);
   }
 
+  // Get regular messages
   let query = supabase
     .from('messages')
     .select(`
@@ -317,52 +401,69 @@ export const getChannelMessages = async (
         )
       )
     `)
-    .eq('channel_id', channelId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .eq('channel_id', channelId);
+
+  // Get clone messages
+  let cloneQuery = supabase
+    .from('clone_messages')
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      ),
+      clones!inner (
+        name
+      ),
+      files:clone_message_files (
+        file:files (
+          id,
+          file_url,
+          file_name,
+          file_size,
+          mime_type,
+          thumbnail_url
+        )
+      )
+    `)
+    .eq('channel_id', channelId);
 
   if (before) {
     query = query.lt('created_at', before);
+    cloneQuery = cloneQuery.lt('created_at', before);
   }
 
-  const { data: messages, error } = await query;
+  const [{ data: messages, error }, { data: cloneMessages, error: cloneError }] = await Promise.all([
+    query.order('created_at', { ascending: false }).limit(limit),
+    cloneQuery.order('created_at', { ascending: false }).limit(limit)
+  ]);
 
   if (error) throw new AppError(error.message, 400);
+  if (cloneError) throw new AppError(cloneError.message, 400);
 
-  // Transform the data to include user name and process reactions
-  const transformedMessages = await Promise.all(messages.map(async (msg) => {
-    // Process files and get signed URLs
-    const files = await Promise.all(
-      (msg.files || [])
-        .filter((f: any) => f.file) // Filter out null files
-        .map(async (fileRel: any) => {
-          const file = fileRel.file;
-          const signedUrl = await getSignedUrl(file);
-          return {
-            ...file,
-            file_url: signedUrl
-          };
-        })
-    );
+  // Process and merge messages
+  const enrichedMessages = await Promise.all(
+    messages?.map(msg => enrichMessageWithDetails(msg, userId)) || []
+  );
+  
+  const enrichedCloneMessages = await Promise.all(
+    cloneMessages?.map(msg => enrichCloneMessageWithDetails(msg)) || []
+  );
 
-    return {
-      ...msg,
-      name: msg.users.name,
-      reactions: {},
-      userReactions: [],
-      files
-    };
-  }));
+  // Merge and sort all messages by creation date
+  const allMessages = [...enrichedMessages, ...enrichedCloneMessages]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
 
-  return transformedMessages;
+  return allMessages;
 };
 
+// Update getThreadMessages to include clone messages
 export const getThreadMessages = async (
   messageId: string,
   userId: string,
   limit: number = 50,
   before?: string
-): Promise<(EnrichedMessage & { name: string })[]> => {
+): Promise<EnrichedMessage[]> => {
   // First get the parent message to check access
   const { data: parentMessage } = await supabase
     .from('messages')
@@ -416,49 +517,50 @@ export const getThreadMessages = async (
         name
       )
     `)
-    .eq('parent_message_id', messageId)
-    .order('created_at', { ascending: true })
-    .limit(limit);
+    .eq('parent_message_id', messageId);
+
+  // Get clone messages in the thread
+  let cloneQuery = supabase
+    .from('clone_messages')
+    .select(`
+      *,
+      channels!inner (
+        workspace_id
+      ),
+      clones!inner (
+        name
+      )
+    `)
+    .eq('parent_message_id', messageId);
 
   if (before) {
     query = query.lt('created_at', before);
+    cloneQuery = cloneQuery.lt('created_at', before);
   }
 
-  const { data: messages, error } = await query;
+  const [{ data: messages, error }, { data: cloneMessages, error: cloneError }] = await Promise.all([
+    query.order('created_at', { ascending: true }).limit(limit),
+    cloneQuery.order('created_at', { ascending: true }).limit(limit)
+  ]);
 
   if (error) throw new AppError(error.message, 400);
+  if (cloneError) throw new AppError(cloneError.message, 400);
 
-  // Get workspace members for the channel's workspace
-  if (messages && messages.length > 0) {
-    const { data: workspaceMembers } = await supabase
-      .from('workspace_members')
-      .select('user_id, display_name')
-      .eq('workspace_id', messages[0].channels.workspace_id);
+  // Process and merge messages
+  const enrichedMessages = await Promise.all(
+    messages?.map(msg => enrichMessageWithDetails(msg, userId)) || []
+  );
+  
+  const enrichedCloneMessages = await Promise.all(
+    cloneMessages?.map(msg => enrichCloneMessageWithDetails(msg)) || []
+  );
 
-    const transformedMessages = messages.map(msg => {
-      const workspaceMember = workspaceMembers?.find(wm => wm.user_id === msg.user_id);
-      
-      return {
-        id: msg.id,
-        channel_id: msg.channel_id,
-        user_id: msg.user_id,
-        content: msg.content,
-        parent_message_id: msg.parent_message_id,
-        created_at: msg.created_at,
-        updated_at: msg.updated_at,
-        channels: msg.channels,
-        users: msg.users,
-        name: workspaceMember?.display_name || msg.users.name,
-        reactions: {},  // Initialize empty for thread messages
-        userReactions: [],  // Initialize empty for thread messages
-        status: msg.status
-      };
-    }) as EnrichedMessage[];
+  // Merge and sort all messages by creation date
+  const allMessages = [...enrichedMessages, ...enrichedCloneMessages]
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .slice(0, limit);
 
-    return transformedMessages;
-  }
-
-  return [];
+  return allMessages;
 };
 
 export const createMessageWithFile = async (
@@ -478,12 +580,24 @@ export const createMessageWithFile = async (
   console.log('[Message Creation] Starting process:', logContext);
 
   try {
+    // Get workspace ID for the channel
+    const { data: channel } = await supabase
+      .from('channels')
+      .select('workspace_id')
+      .eq('id', channelId)
+      .single();
+
+    if (!channel) throw new AppError('Channel not found', 404);
+
+    // Parse mentions and format content
+    const mentions = await MentionParserService.parseMessageMentions(content, channel.workspace_id);
+    const formattedContent = MentionParserService.formatMessageWithCloneIds(content, mentions);
+
     // If there's a file, upload it first
     let uploadedFile;
     if (file) {
       uploadedFile = await fileService.uploadFile(channelId, userId, file);
       
-      // Verify we have a valid uploaded file with URL before proceeding
       if (!uploadedFile?.file_url) {
         console.error('[Message Creation] File upload failed - missing URL:', uploadedFile);
         throw new AppError('File upload failed - missing URL', 500);
@@ -496,7 +610,7 @@ export const createMessageWithFile = async (
       .insert({
         channel_id: channelId,
         user_id: userId,
-        content,
+        content: formattedContent,
         parent_message_id: parentMessageId,
       })
       .select()
@@ -505,6 +619,15 @@ export const createMessageWithFile = async (
     if (insertError) {
       console.error('[Message Creation] Failed to insert:', { ...logContext, error: insertError });
       throw new AppError(insertError.message, 500);
+    }
+
+    // Create mention records
+    for (const mention of mentions) {
+      await MentionService.createMention(
+        insertedMessage.id,
+        mention.cloneId,
+        mention.mentionType
+      );
     }
 
     // If we have an uploaded file, link it to the message
