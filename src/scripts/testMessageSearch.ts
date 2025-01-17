@@ -4,7 +4,7 @@ async function testMessageSearch() {
     try {
         const result = await aiService.messageSearch({
             workspace_id: '6ce0a487-ef99-458d-9393-b12caae9812a',
-            base_prompt: 'you are a search engine and are supposed to respond to the query based on the provided context.',
+            base_prompt: 'you are a search engine and are supposed to respond to the query based on the provided context. Provide only answers, not questions.',
             pinecone_index: 'message-vectors',
             query: 'have we talked about amazon at all?'
         });
