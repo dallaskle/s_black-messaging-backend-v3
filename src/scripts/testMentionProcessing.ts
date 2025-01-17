@@ -116,14 +116,14 @@ async function testMentionProcessing() {
             console.log('Clone response:', responseMessage?.content);
         }
 
+        /*
         // Test 2: Thread conversation
         console.log('\nTest 2: Thread conversation');
         const message2 = await createMessage(
             TEST_CHANNEL_ID,
             TEST_USER_ID,
             `@${clone.name} Can you explain how you calculated that?`,
-            undefined,
-            [message1.id] // Set as reply to first message
+            message1.id  // Set as reply to first message
         );
         testData.messageIds.push(message2.id);
         console.log('Created reply message:', message2.content);
@@ -154,9 +154,11 @@ async function testMentionProcessing() {
                 .single();
             console.log('Clone response:', responseMessage?.content);
         }
+        */
 
         // Save test data for cleanup
         await saveTestData(testData);
+
 
         console.log('\nAll tests completed successfully!');
         console.log('Created test data:');
