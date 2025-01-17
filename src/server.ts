@@ -9,6 +9,7 @@ import messageV2Routes from './messages_v2/messageRoutes';
 import reactionRoutes from './reactions/reactionRoutes';
 import fileRoutes from './files/fileRoutes';
 import cloneRoutes from './clones/routes/clone.routes';
+import aiRoutes from './clones/routes/ai.routes';
 
 export function createServer() {
   const app = express();
@@ -37,7 +38,7 @@ export function createServer() {
   app.use('/api', reactionRoutes);
   app.use('/api', fileRoutes);
   app.use('/api', cloneRoutes);
-
+  app.use('/api', aiRoutes);
   // Protected route example
   app.get('/api/protected', (req, res) => {
     res.json({ message: 'Protected data' });

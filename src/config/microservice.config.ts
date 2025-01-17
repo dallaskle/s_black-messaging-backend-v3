@@ -12,7 +12,8 @@ export const PYTHON_SERVICE_CONFIG = {
     endpoints: {
         upload: '/documents',
         chat: '/chat',
-        health: '/health'
+        health: '/health',
+        messageSearch: '/message-search'
     },
     timeout: 120000, // 120 seconds
     retries: 3

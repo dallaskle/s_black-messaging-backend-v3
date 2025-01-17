@@ -79,6 +79,44 @@ class AIService {
         }
     }
 
+    async messageSearch(payload: {
+        workspace_id: string;
+        channel_id?: string;
+        base_prompt: string;
+        pinecone_index: string;
+        query: string;
+    }) {
+        console.log('[AIService] Preparing message search request:', {
+            workspaceId: payload.workspace_id,
+            channelId: payload.channel_id,
+            query: payload.query,
+            basePrompt: payload.base_prompt,
+            pineconeIndex: payload.pinecone_index,
+            headers: this.axiosInstance.defaults.headers
+        });
+
+        try {
+            console.log('[AIService] Sending request to Python service:', PYTHON_SERVICE_CONFIG.endpoints.messageSearch);
+            const response = await this.axiosInstance.post(PYTHON_SERVICE_CONFIG.endpoints.messageSearch, payload);
+            console.log('[AIService] Message search response received:', {
+                workspaceId: payload.workspace_id,
+                responseLength: response.data.response?.length || 0,
+                hasContext: !!response.data.context,
+                response: response.data
+            });
+            return response.data;
+        } catch (error) {
+            console.error('[AIService] Message search request failed:', {
+                error: error instanceof AxiosError ? {
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    message: error.message
+                } : error
+            });
+            this.handleError(error as AxiosError);
+        }
+    }
+
     async checkHealth() {
         console.log('[AIService] Checking Python service health');
         try {
